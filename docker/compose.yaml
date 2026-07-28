@@ -1,0 +1,28 @@
+# Local Oracle only. This project is a batch evaluation harness, so it needs a
+# single database service -- no Kong/UI/MCP/workers.
+#
+# gvenzl/oracle-free tracks Oracle Database 23ai Free, which provides the 26ai
+# features this project uses: SQL/PGQ property graphs and native VECTOR.
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: vpk-oracle
+    ports:
+      - "${ORACLE_PORT:-1522}:1521"
+    environment:
+      # SYS/SYSTEM password.
+      ORACLE_PASSWORD: ${ORACLE_PWD:-Welcome1_local}
+      # Auto-provisions the non-privileged app user inside FREEPDB1.
+      APP_USER: ${MC_DATABASE__USER:-MC}
+      APP_USER_PASSWORD: ${MC_DATABASE__PASSWORD:-Welcome1_local}
+    volumes:
+      - vpk-oracle-data:/opt/oracle/oradata
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+volumes:
+  vpk-oracle-data:

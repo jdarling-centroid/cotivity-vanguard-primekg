@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vanguard-primekg"
+version = "0.0.0"
+description = "Answer the 100 PrimeKG questions by composing queries in Oracle 26ai."
+requires-python = ">=3.11"
+dependencies = [
+  "oracledb>=2.4",
+  "python-dotenv>=1.0",
+  "pydantic>=2.6",
+  "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+# Local embedder for VECTOR entity resolution (added at M2; kept optional so the
+# M0 chassis stays light).
+embed = ["sentence-transformers>=2.7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

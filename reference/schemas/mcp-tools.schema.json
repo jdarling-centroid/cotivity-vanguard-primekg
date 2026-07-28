@@ -1,0 +1,407 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://medical-classifier.example/schemas/mcp-tools.schema.json",
+  "title": "Medical Classifier MCP Tool Contracts",
+  "type": "object",
+  "required": ["tools"],
+  "properties": {
+    "tools": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/tool"}
+    }
+  },
+  "tools": [
+    {
+      "name": "hybrid_search",
+      "description": "Return ranked graph nodes using semantic, lexical, structured, and graph retrieval.",
+      "inputSchema": {"$ref": "#/$defs/searchRequest"},
+      "outputSchema": {"$ref": "#/$defs/searchResponse"}
+    },
+    {
+      "name": "get_node",
+      "description": "Return one graph node with labels, attributes, provenance, and pointers.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id"],
+        "properties": {"node_id": {"type": "string"}}
+      },
+      "outputSchema": {"$ref": "#/$defs/node"}
+    },
+    {
+      "name": "traverse_graph",
+      "description": "Traverse allowed graph relationships from one or more start nodes.",
+      "inputSchema": {"$ref": "#/$defs/traverseRequest"},
+      "outputSchema": {"$ref": "#/$defs/traverseResponse"}
+    },
+    {
+      "name": "get_fragment",
+      "description": "Return bounded fragment text and its source evidence.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["fragment_id"],
+        "properties": {"fragment_id": {"type": "string"}}
+      },
+      "outputSchema": {"$ref": "#/$defs/fragment"}
+    },
+    {
+      "name": "get_artifact",
+      "description": "Return an artifact descriptor and short-lived access URL for a node.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_id"],
+        "properties": {
+          "node_id": {"type": "string"},
+          "artifact_role": {
+            "type": "string",
+            "enum": ["original", "pdf", "image", "thumbnail", "text", "json"]
+          }
+        }
+      },
+      "outputSchema": {"$ref": "#/$defs/artifact"}
+    },
+    {
+      "name": "get_upload_status",
+      "description": "Return upload processing status and page progress.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["upload_id"],
+        "properties": {"upload_id": {"type": "string"}}
+      },
+      "outputSchema": {"$ref": "#/$defs/uploadStatus"}
+    },
+    {
+      "name": "list_labels",
+      "description": "List current labels with counts, confidence statistics, and examples.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "query": {"type": "string"},
+          "limit": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50},
+          "cursor": {"type": "string"}
+        }
+      },
+      "outputSchema": {"$ref": "#/$defs/labelList"}
+    },
+    {
+      "name": "rename_label",
+      "description": "Rename a current taxonomy label and update its node assignments.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label_id", "name"],
+        "properties": {
+          "label_id": {"type": "string"},
+          "name": {"type": "string", "minLength": 1},
+          "display_name": {"type": "string"}
+        }
+      },
+      "outputSchema": {"$ref": "#/$defs/label"}
+    },
+    {
+      "name": "merge_labels",
+      "description": "Move assignments from source labels to a target label and remove the sources.",
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_label_ids", "target_label_id"],
+        "properties": {
+          "source_label_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {"type": "string"}
+          },
+          "target_label_id": {"type": "string"}
+        }
+      },
+      "outputSchema": {
+        "type": "object",
+        "required": ["target", "merged_count"],
+        "properties": {
+          "target": {"$ref": "#/$defs/label"},
+          "merged_count": {"type": "integer", "minimum": 0}
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "required": ["name", "description", "inputSchema", "outputSchema"],
+      "properties": {
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "inputSchema": {"type": "object"},
+        "outputSchema": {"type": "object"}
+      }
+    },
+    "nodeType": {
+      "type": "string",
+      "enum": [
+        "upload",
+        "processing_run",
+        "child_document",
+        "page",
+        "fragment",
+        "text_block",
+        "paragraph",
+        "table",
+        "table_cell",
+        "key_value",
+        "image",
+        "reference_entity",
+        "reference_document",
+        "reference_chunk"
+      ]
+    },
+    "attributeFilter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "operator"],
+      "properties": {
+        "name": {"type": "string"},
+        "operator": {"type": "string", "enum": ["eq", "neq", "contains", "prefix", "gt", "gte", "lt", "lte", "between", "exists"]},
+        "value": {},
+        "values": {"type": "array", "items": {}}
+      }
+    },
+    "searchRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "query": {"type": "string"},
+        "node_types": {"type": "array", "items": {"$ref": "#/$defs/nodeType"}},
+        "labels": {"type": "array", "items": {"type": "string"}},
+        "attributes": {"type": "array", "items": {"$ref": "#/$defs/attributeFilter"}},
+        "upload_ids": {"type": "array", "items": {"type": "string"}},
+        "reference_source_ids": {"type": "array", "items": {"type": "string"}},
+        "source_scope": {"type": "string", "enum": ["documents", "references", "all"], "default": "all"},
+        "include_provisional": {"type": "boolean", "default": true},
+        "modes": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["semantic", "lexical", "structured", "graph"]},
+          "default": ["semantic", "lexical", "structured", "graph"]
+        },
+        "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 20},
+        "cursor": {"type": "string"}
+      },
+      "anyOf": [
+        {"required": ["query"]},
+        {"required": ["labels"]},
+        {"required": ["attributes"]},
+        {"required": ["upload_ids"]},
+        {"required": ["reference_source_ids"]}
+      ]
+    },
+    "searchHit": {
+      "type": "object",
+      "required": ["node", "score", "matched_by"],
+      "properties": {
+        "node": {"$ref": "#/$defs/node"},
+        "score": {"type": "number"},
+        "matched_by": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["semantic", "lexical", "structured", "graph"]}
+        },
+        "highlights": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "searchResponse": {
+      "type": "object",
+      "required": ["results"],
+      "properties": {
+        "results": {"type": "array", "items": {"$ref": "#/$defs/searchHit"}},
+        "next_cursor": {"type": "string"},
+        "provisional_results_present": {"type": "boolean"}
+      }
+    },
+    "node": {
+      "type": "object",
+      "required": ["node_id", "node_type", "status", "labels", "attributes", "created_at"],
+      "properties": {
+        "node_id": {"type": "string"},
+        "node_type": {"$ref": "#/$defs/nodeType"},
+        "upload_id": {"type": "string"},
+        "reference_source_id": {"type": "string"},
+        "label": {"type": "string"},
+        "text": {"type": "string"},
+        "provenance": {"type": "object"},
+        "processing_run_id": {"type": "string"},
+        "ordinal": {"type": "integer"},
+        "status": {"type": "string", "enum": ["queued", "processing", "provisional", "ready", "failed"]},
+        "labels": {"type": "array", "items": {"$ref": "#/$defs/nodeLabel"}},
+        "attributes": {"type": "array", "items": {"$ref": "#/$defs/attribute"}},
+        "pointers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["kind", "id"],
+            "properties": {
+              "kind": {"type": "string", "enum": ["node", "fragment", "artifact"]},
+              "id": {"type": "string"}
+            }
+          }
+        },
+        "created_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "nodeLabel": {
+      "type": "object",
+      "required": ["label_id", "name"],
+      "properties": {
+        "label_id": {"type": "string"},
+        "name": {"type": "string"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "processor": {"type": "string"},
+        "processor_version": {"type": "string"}
+      }
+    },
+    "attribute": {
+      "type": "object",
+      "required": ["name", "value", "source_kind"],
+      "properties": {
+        "name": {"type": "string"},
+        "value": {},
+        "value_type": {"type": "string", "enum": ["string", "number", "date", "boolean", "json"]},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "source_kind": {"type": "string", "enum": ["upload", "extracted", "inferred", "system"]},
+        "assertion_kind": {"type": "string", "enum": ["explicit", "inferred", "unknown"]},
+        "processor": {"type": "string"},
+        "processor_version": {"type": "string"},
+        "evidence_node_id": {"type": "string"}
+      }
+    },
+    "traverseRequest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_node_ids"],
+      "properties": {
+        "start_node_ids": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "relationships": {
+          "type": "array",
+          "items": {"type": "string", "enum": ["CONTAINS", "DERIVED_FROM", "HAS_FRAGMENT"]}
+        },
+        "predicates": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "display_relations": {
+          "type": "array",
+          "items": {"type": "string"}
+        },
+        "direction": {"type": "string", "enum": ["outbound", "inbound", "both"], "default": "both"},
+        "minimum_depth": {"type": "integer", "minimum": 1, "default": 1},
+        "maximum_depth": {"type": "integer", "minimum": 1, "maximum": 8, "default": 3},
+        "node_types": {"type": "array", "items": {"$ref": "#/$defs/nodeType"}},
+        "limit": {"type": "integer", "minimum": 1, "maximum": 500, "default": 100}
+      }
+    },
+    "traverseResponse": {
+      "type": "object",
+      "required": ["nodes", "edges"],
+      "properties": {
+        "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+        "edges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["edge_id", "source_node_id", "target_node_id", "relationship"],
+            "properties": {
+              "edge_id": {"type": "string"},
+              "source_node_id": {"type": "string"},
+              "target_node_id": {"type": "string"},
+              "relationship": {"type": "string", "enum": ["CONTAINS", "DERIVED_FROM", "HAS_FRAGMENT"]}
+            }
+          }
+        }
+      }
+    },
+    "fragment": {
+      "type": "object",
+      "required": ["fragment_id", "node_id", "fragment_type", "text"],
+      "properties": {
+        "fragment_id": {"type": "string"},
+        "node_id": {"type": "string"},
+        "fragment_type": {"type": "string"},
+        "text": {"type": "string"},
+        "bounding_box": {"type": "object"},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "source_page_node_id": {"type": "string"},
+        "source_document_node_id": {"type": "string"}
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["artifact_id", "node_id", "media_type", "byte_size", "checksum_sha256", "url", "expires_at"],
+      "properties": {
+        "artifact_id": {"type": "string"},
+        "node_id": {"type": "string"},
+        "media_type": {"type": "string"},
+        "byte_size": {"type": "integer", "minimum": 0},
+        "checksum_sha256": {"type": "string"},
+        "url": {"type": "string", "format": "uri"},
+        "expires_at": {"type": "string", "format": "date-time"},
+        "derived_from_node_id": {"type": "string"}
+      }
+    },
+    "uploadStatus": {
+      "type": "object",
+      "required": ["upload_id", "state", "page_counts", "created_at", "updated_at"],
+      "properties": {
+        "upload_id": {"type": "string"},
+        "state": {
+          "type": "string",
+          "enum": ["received", "stored", "splitting_pages", "processing_pages", "assembling_documents", "classifying_documents", "indexing", "ready", "ready_with_warnings", "failed"]
+        },
+        "current_stage": {"type": "string"},
+        "page_counts": {
+          "type": "object",
+          "required": ["total", "queued", "processing", "completed", "failed"],
+          "properties": {
+            "total": {"type": "integer", "minimum": 0},
+            "queued": {"type": "integer", "minimum": 0},
+            "processing": {"type": "integer", "minimum": 0},
+            "completed": {"type": "integer", "minimum": 0},
+            "failed": {"type": "integer", "minimum": 0}
+          }
+        },
+        "document_counts": {
+          "type": "object",
+          "properties": {
+            "provisional": {"type": "integer", "minimum": 0},
+            "completed": {"type": "integer", "minimum": 0}
+          }
+        },
+        "created_at": {"type": "string", "format": "date-time"},
+        "updated_at": {"type": "string", "format": "date-time"}
+      }
+    },
+    "label": {
+      "type": "object",
+      "required": ["label_id", "name", "display_name", "usage_count"],
+      "properties": {
+        "label_id": {"type": "string"},
+        "name": {"type": "string"},
+        "display_name": {"type": "string"},
+        "seeded": {"type": "boolean"},
+        "usage_count": {"type": "integer", "minimum": 0},
+        "mean_confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "source_models": {"type": "array", "items": {"type": "string"}},
+        "example_node_ids": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "labelList": {
+      "type": "object",
+      "required": ["labels"],
+      "properties": {
+        "labels": {"type": "array", "items": {"$ref": "#/$defs/label"}},
+        "next_cursor": {"type": "string"}
+      }
+    }
+  }
+}

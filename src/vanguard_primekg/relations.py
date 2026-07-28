@@ -6,8 +6,9 @@ from __future__ import annotations
 TARGET_ROLES: tuple[str, ...] = ("target", "enzyme", "carrier", "transporter")
 
 # Predicates needed to answer the 100 questions. The loader defaults to this
-# subset (~4M edges) for fast local iteration; pass --relations all for the full
-# 8.1M-edge graph before M7.
+# selected source relations for fast local iteration; pass --relations all for
+# every source fact before the final run. The loader materializes each fact in
+# both directions, so pk_edges contains directed records rather than source-row counts.
 SUBSET_PREDICATES: tuple[str, ...] = (
     "drug_drug",                   # synergistic interaction
     "protein_protein",             # ppi

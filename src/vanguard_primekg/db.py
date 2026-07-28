@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 
-import oracledb
+from .oracle_compat import oracledb
 
 from .config import Settings, load_settings
 

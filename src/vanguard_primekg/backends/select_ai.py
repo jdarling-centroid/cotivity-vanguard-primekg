@@ -9,7 +9,7 @@ profile over pk_nodes/pk_edges and issue ``SELECT AI`` for each question.
 
 from __future__ import annotations
 
-import oracledb
+from ..oracle_compat import oracledb
 
 from ..logging import get_logger
 

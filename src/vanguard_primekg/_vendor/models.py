@@ -117,6 +117,9 @@ class SessionResult:
     # The orchestrator's unmodified final message. Interactive conversations
     # preserve this separately so MiniCPM formatting is optional and auditable.
     raw_answer: str | None = None
+    truncated: bool = False
+    confidence_basis: str | None = None
+    audit: dict[str, Any] = field(default_factory=dict)
 
     @property
     def trace_id(self) -> str:

@@ -7,8 +7,8 @@ subset) makes a completed load a no-op.
 
 Usage::
 
-    python -m vanguard_primekg.load_primekg                 # subset (~4M edges)
-    python -m vanguard_primekg.load_primekg --relations all # full 8.1M edges
+    python -m vanguard_primekg.load_primekg                 # selected source relations
+    python -m vanguard_primekg.load_primekg --relations all # all source facts, materialized both ways
     python -m vanguard_primekg.load_primekg --vectors       # also embed names
 """
 
@@ -22,7 +22,7 @@ import sys
 import time
 from pathlib import Path
 
-import oracledb
+from .oracle_compat import oracledb
 
 from .config import Settings, load_settings
 from .db import connect
@@ -35,6 +35,7 @@ csv.field_size_limit(min(sys.maxsize, 2**31 - 1))
 
 _TOLERATED_ORA = {955, 1408}  # name already used; column list already indexed
 _WS = re.compile(r"\s+")
+_LOAD_FORMAT_VERSION = "bidirectional-v2"
 
 
 def normalize_name(value: str) -> str:
@@ -44,6 +45,29 @@ def normalize_name(value: str) -> str:
 def edge_id(x_index: str, y_index: str, predicate: str, display: str) -> str:
     digest = hashlib.sha1(f"{predicate}\0{display}".encode()).hexdigest()[:8]
     return f"pk_e_{x_index}_{y_index}_{digest}"
+
+
+def directed_edge_rows(
+    x_index: str, y_index: str, predicate: str, display: str
+) -> list[dict[str, str | None]]:
+    """Return deterministic forward and reverse records for one PrimeKG fact."""
+    rows: list[dict[str, str | None]] = []
+    seen: set[str] = set()
+    for source, target in ((x_index, y_index), (y_index, x_index)):
+        eid = edge_id(source, target, predicate, display)
+        if eid in seen:  # self-loop
+            continue
+        seen.add(eid)
+        rows.append(
+            {
+                "edge_id": eid,
+                "source_node_id": f"pk_n_{source}",
+                "target_node_id": f"pk_n_{target}",
+                "predicate": predicate,
+                "display_relation": display or None,
+            }
+        )
+    return rows
 
 
 def _fingerprint(path: Path) -> str:
@@ -135,7 +159,8 @@ def load(
 ) -> tuple[int, int]:
     settings = settings or load_settings()
     relation_filter = set(relations) if relations else None
-    relations_label = "all" if relation_filter is None else ",".join(sorted(relation_filter))
+    relation_scope = "all" if relation_filter is None else ",".join(sorted(relation_filter))
+    relations_label = f"{_LOAD_FORMAT_VERSION}:{relation_scope}"
     fingerprint = _fingerprint(input_path)
 
     with connect(settings) as conn:
@@ -179,25 +204,19 @@ def load(
                             "name_norm": (normalize_name(name)[:1000] or None),
                         }
 
-                eid = edge_id(x_index, y_index, predicate, display)
-                if eid not in edges_seen:
+                for edge in directed_edge_rows(x_index, y_index, predicate, display):
+                    eid = str(edge["edge_id"])
+                    if eid in edges_seen:
+                        continue
                     edges_seen.add(eid)
-                    edge_batch.append(
-                        {
-                            "edge_id": eid,
-                            "source_node_id": f"pk_n_{x_index}",
-                            "target_node_id": f"pk_n_{y_index}",
-                            "predicate": predicate,
-                            "display_relation": display or None,
-                        }
-                    )
+                    edge_batch.append(edge)
                     if len(edge_batch) >= batch_size:
                         cur.executemany(_EDGE_MERGE, edge_batch)
                         conn.commit()
                         edges_written += len(edge_batch)
                         edge_batch.clear()
                         if edges_written % (batch_size * 20) == 0:
-                            log.info("edges merged: %d", edges_written)
+                            log.info("directed edges merged: %d", edges_written)
 
             if edge_batch:
                 cur.executemany(_EDGE_MERGE, edge_batch)
@@ -216,7 +235,7 @@ def load(
         _record_journal(conn, fingerprint, relations_label, len(nodes), edges_written)
         elapsed = time.monotonic() - started
         log.info(
-            "load complete: %d nodes, %d edges in %.1fs", len(nodes), edges_written, elapsed
+            "load complete: %d nodes, %d directed edges in %.1fs", len(nodes), edges_written, elapsed
         )
         return len(nodes), edges_written
 

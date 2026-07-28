@@ -37,3 +37,31 @@ This document serves as our initial **Clarification Log** (as required by the RF
 ### Question 6: Execution Hardware Restrictions
 * **Context:** The reported NFRs require reporting ingestion throughput and query latency accompanied by hardware specifications (vCPU, GPU, RAM, model version).
 * **Question:** Will Cotiviti evaluate all submissions on their own benchmark hardware, or are we expected to host the infrastructure during the Stage 1 and Stage 2 runs and report self-measured operations metrics? If hosted by the vendor, are there standard cloud VM shapes (e.g. OCI or AWS) that Cotiviti recommends to ensure comparable metrics?
+
+---
+
+## Track A implementation status (2026-07-28)
+
+### Question 1 disposition: PrimeKG citation formatting
+
+- **Cotiviti response found in repository:** No separate response received.
+- **RFP instruction relied upon:** Section 8 states that graph-native sources
+  such as PrimeKG cite the source node, edge, or record identifier through
+  `source_ref` instead of page and span.
+- **Implementation treatment:** Use native local `pk_nodes.node_id` and
+  `pk_edges.edge_id` values as `source_ref`; include `source_type` and matching
+  deterministic `retrieved_context`. Do not invent page or character spans.
+- **Assumption:** No additional vendor-specific prefix is required unless
+  Cotiviti responds otherwise.
+
+### PrimeKG clinical-context trace treatment
+
+- **Cotiviti response found in repository:** No response received.
+- **Issue:** The RFP says the clinical-context block applies to biomedical
+  PrimeKG, while the provided graph facts do not encode patient-level negation,
+  temporality, uncertainty, or experiencer.
+- **Implementation treatment:** Add an explicit `context_check` step with
+  `clinical_context_available: false` and the documented reason. Do not
+  fabricate patient-level values.
+- **Assumption:** Explicit unavailability is preferable to invented clinical
+  context unless Cotiviti provides a different instruction.

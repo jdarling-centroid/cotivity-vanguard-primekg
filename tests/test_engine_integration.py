@@ -72,3 +72,46 @@ def test_stereo_prefix_is_not_stripped() -> None:
     # "(2S)-..." is stereochemistry, not an isotope label; must not resolve to a parent.
     assert Resolver(_conn).resolve("(2S)-no-such-compound-xyz", DRUG_TYPES) is None
 
+
+
+@pytest.mark.parametrize(
+    "number",
+    [1, 11, 12, 50, 73, 77, 79, 84, 85, 87, 89, 91],
+)
+def test_every_composition_operation_returns_answer_scoped_support(number: int) -> None:
+    """Focused local-Oracle gate spanning every reusable composition primitive."""
+    import yaml
+
+    from vanguard_primekg.backends import PgqBackend
+    from vanguard_primekg.classify import classify
+    from vanguard_primekg.config import load_settings
+
+    questions = yaml.safe_load(
+        (load_settings().repo_root / "config" / "primekg-question-sets.yaml").read_text()
+    )["sections"][0]["questions"]
+    text = next(item["question"] for item in questions if item["number"] == number)
+    plan = classify(text)
+    backend = PgqBackend(_conn)
+    resolved = backend.resolve_plan(plan)
+    assert resolved is not None
+    result = backend.execute(plan, resolved=resolved)
+    assert result is not None
+    assert result.error is None
+    assert result.sql.lstrip().upper().startswith("WITH")
+    for node_id, _name, _type in result.nodes:
+        paths = result.support_for(node_id)
+        assert paths, (number, node_id)
+        for path in paths:
+            assert path.path_nodes[-1] == node_id
+            assert len(path.path_edges) == len(path.path_nodes) - 1
+            assert len(path.predicates) == len(path.path_edges)
+            assert len(path.display_relations) == len(path.path_edges)
+
+
+def test_insufficient_data_adjacent_evidence_is_auditable() -> None:
+    node_id = _resolve("Deferiprone", DRUG_TYPES)
+    evidence = QueryEngine(_conn).node_evidence(node_id)
+    assert evidence.sql.lstrip().upper().startswith("SELECT")
+    assert evidence.binds == {"node_id": node_id}
+    assert evidence.name == "Deferiprone"
+    assert evidence.edges

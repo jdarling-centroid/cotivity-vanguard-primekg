@@ -3,8 +3,9 @@
     python scripts/ask.py "Which drugs are indicated for disease scalp dermatosis?"
     python scripts/ask.py "..." --json     # emit the RFP qa-results / reasoning-traces records
 
-Shows the hop-by-hop reasoning (entity lookups and the edges traversed) and the
-final answer with its supporting edge ids. Writes nothing to disk.
+Shows the validated operation and deterministic answer. ``--json`` includes the
+actual database composition query, entity resolution, and complete support paths.
+Writes nothing to disk.
 """
 
 from __future__ import annotations
@@ -33,7 +34,7 @@ def main(argv: list[str] | None = None) -> int:
     with connect() as conn:
         conn.call_timeout = 30000
         backend = PgqBackend(conn)
-        # verbose prints the trajectory unless we're emitting JSON.
+        # verbose prints the validated operation unless JSON is requested.
         session = solve(0, question, backend, verbose=not args.json, trace=True)
 
     if args.json:

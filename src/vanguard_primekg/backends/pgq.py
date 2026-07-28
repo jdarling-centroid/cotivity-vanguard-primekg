@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import oracledb
+from ..oracle_compat import oracledb
 
 from ..classify import Plan
 from ..query_engine import QueryEngine, QueryResult, specs as S
@@ -17,13 +17,19 @@ class PgqBackend:
         self.resolver = Resolver(conn)
         self.engine = QueryEngine(conn)
 
-    def execute(self, plan: Plan) -> QueryResult | None:
+    def resolve_plan(self, plan: Plan) -> list | None:
         resolved = []
         for label, types in plan.slots:
             hit = self.resolver.resolve(label, types)
             if hit is None:
                 return None
             resolved.append(hit)
+        return resolved
+
+    def execute(self, plan: Plan, *, resolved: list | None = None) -> QueryResult | None:
+        resolved = resolved if resolved is not None else self.resolve_plan(plan)
+        if resolved is None:
+            return None
 
         exclude: tuple[str, ...] = ()
         if plan.exclude_slot is not None:

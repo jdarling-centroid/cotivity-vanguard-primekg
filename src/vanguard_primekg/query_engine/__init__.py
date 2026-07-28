@@ -1,8 +1,8 @@
-"""Query engine: single-SQL composition for categories A–D."""
+"""Query engine: single-SQL composition for categories A-D."""
 
 from __future__ import annotations
 
-from .engine import QueryEngine, QueryResult
+from .engine import NodeEvidence, QueryEngine, QueryResult, SupportPath
 from . import specs
 
-__all__ = ["QueryEngine", "QueryResult", "specs"]
+__all__ = ["NodeEvidence", "QueryEngine", "QueryResult", "SupportPath", "specs"]

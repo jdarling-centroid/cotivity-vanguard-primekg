@@ -4,9 +4,9 @@ It writes two files incrementally, one question at a time, so a long batch never
 holds more than a single question's data in memory. Filenames follow the Stage 1
 submission convention (design Section 8), driven by the ``vendor_id``:
 
-* ``vendor_<vendor_id>_stage1_qa-results_v1.jsonl`` — one compact JSON object per
+* ``vendor_<vendor_id>_stage1_qa-results_v<n>.jsonl`` — one compact JSON object per
   line (Section 8.2).
-* ``vendor_<vendor_id>_stage1_reasoning-traces_v1.json`` — a pretty-printed JSON
+* ``vendor_<vendor_id>_stage1_reasoning-traces_v<n>.json`` — a pretty-printed JSON
   array (Section 8.3), emitted element-by-element with manual bracket/comma
   handling to stay streamable.
 
@@ -165,6 +165,8 @@ def qa_record(result: SessionResult) -> dict[str, Any]:
         "graph_edges_used": graph_edges,
         "reasoning_trace_ref": result.trace_id,
         "latency_ms": result.latency_ms,
+        "truncated": result.truncated,
+        "confidence_basis": result.confidence_basis,
     })
 
 
@@ -192,12 +194,18 @@ def trace_record(result: SessionResult) -> dict[str, Any]:
 class Finalizer:
     """Streams :class:`SessionResult` objects to the two artifact files."""
 
-    def __init__(self, output_dir: str | Path, *, vendor_id: str = "acme") -> None:
+    def __init__(
+        self, output_dir: str | Path, *, vendor_id: str, version: int
+    ) -> None:
         self._dir = Path(output_dir)
         # RFP Section 7.1/8: artifact tokens are 'qa-results' (8.2) and
         # 'reasoning-traces' (8.3) for Stage 1 Track A (PrimeKG).
-        self._results_path = self._dir / stage1_filename(vendor_id, "qa-results", "jsonl")
-        self._trace_path = self._dir / stage1_filename(vendor_id, "reasoning-traces", "json")
+        self._results_path = self._dir / stage1_filename(
+            vendor_id, "qa-results", "jsonl", version=version
+        )
+        self._trace_path = self._dir / stage1_filename(
+            vendor_id, "reasoning-traces", "json", version=version
+        )
         self._results = None
         self._trace = None
         self._first_trace = True
@@ -205,8 +213,18 @@ class Finalizer:
 
     def __enter__(self) -> Finalizer:
         self._dir.mkdir(parents=True, exist_ok=True)
-        self._results = self._results_path.open("w", encoding="utf-8")
-        self._trace = self._trace_path.open("w", encoding="utf-8")
+        existing = [path for path in (self._results_path, self._trace_path) if path.exists()]
+        if existing:
+            names = ", ".join(path.name for path in existing)
+            raise FileExistsError(f"submission version already exists: {names}")
+        self._results = self._results_path.open("x", encoding="utf-8", newline="\n")
+        try:
+            self._trace = self._trace_path.open("x", encoding="utf-8", newline="\n")
+        except Exception:
+            self._results.close()
+            self._results = None
+            self._results_path.unlink(missing_ok=True)
+            raise
         self._trace.write("[\n")
         return self
 

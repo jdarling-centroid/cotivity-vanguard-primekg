@@ -28,3 +28,29 @@ DIS_HIER = RelSpec("disease_disease")             # parent-child (undirected)
 PHENO_HIER = RelSpec("phenotype_phenotype")
 INTERACTS = RelSpec("drug_drug")                  # synergistic interaction
 PHENO_PROTEIN = RelSpec("phenotype_protein")
+
+# Closed planner vocabulary.  The model selects these stable identifiers; it
+# never supplies raw predicates or display-relation strings.
+RELATION_BY_ID: dict[str, RelSpec] = {
+    "targets": TARGETS,
+    "side_effect": SIDE_EFFECT,
+    "indication": INDICATION,
+    "contraindication": CONTRA,
+    "off_label": OFFLABEL,
+    "disease_protein": DIS_PROTEIN,
+    "disease_phenotype": DIS_PHENO,
+    "protein_interaction": PPI,
+    "pathway_protein": PATHWAY,
+    "disease_hierarchy": DIS_HIER,
+    "phenotype_hierarchy": PHENO_HIER,
+    "drug_interaction": INTERACTS,
+    "phenotype_protein": PHENO_PROTEIN,
+}
+
+
+def relation_id(spec: RelSpec) -> str:
+    """Return the stable planner identifier for a relation specification."""
+    for identifier, candidate in RELATION_BY_ID.items():
+        if candidate == spec:
+            return identifier
+    raise ValueError(f"relation is not in the closed planner vocabulary: {spec!r}")

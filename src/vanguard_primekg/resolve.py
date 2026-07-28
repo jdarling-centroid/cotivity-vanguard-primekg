@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-import oracledb
+from .oracle_compat import oracledb
 
 from .load_primekg import normalize_name
 
@@ -169,7 +169,8 @@ class Resolver:
 
 _STOPWORDS = {
     "disease", "diseases", "drug", "drugs", "protein", "proteins", "gene", "genes",
-    "syndrome", "disorder", "common", "known", "with", "that", "have", "from",
+    "syndrome", "disorder", "compound", "compounds", "common", "known", "with",
+    "that", "have", "from",
 }
 
 

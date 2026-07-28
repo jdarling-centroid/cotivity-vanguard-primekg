@@ -15,8 +15,6 @@ When picking this task back up, use this document as a quick-start guide to unde
 * **[docs/competitive-advantage.md](file:///Users/jeremydarling/medical-classifier/cotiviti/ai-proposalresponse/docs/competitive-advantage.md)**: Details on why our document-boundary detection and page-assembly ingestion pipeline is a major competitive advantage.
 * **[docs/model-routing-strategy.md](file:///Users/jeremydarling/medical-classifier/cotiviti/ai-proposalresponse/docs/model-routing-strategy.md)**: System design for routing queries through SkillOpt (Orinth/large LLMs) and routing document extraction to small, local on-device SLMs (MiniCPM5).
 * **[mock_templates/](file:///Users/jeremydarling/medical-classifier/cotiviti/ai-proposalresponse/mock_templates/)**: Reference JSON/JSONL output templates matching the RFP Section 8 schemas.
-* **[conversation_transcript.jsonl](file:///Users/jeremydarling/medical-classifier/cotiviti/ai-proposalresponse/conversation_transcript.jsonl)**: A compact JSONL transcript of the strategic conversation assessing the POC.
-* **[conversation_transcript_full.jsonl](file:///Users/jeremydarling/medical-classifier/cotiviti/ai-proposalresponse/conversation_transcript_full.jsonl)**: The full untruncated JSONL conversation log.
 
 ---
 

@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/vanguard-primekg/planner-plan.schema.json",
+  "title": "PrimeKG closed composition plan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "op", "slots", "steps", "legs", "final_types", "answer_type", "noun"],
+  "properties": {
+    "schema_version": {"const": "planner-plan-1.0"},
+    "op": {
+      "enum": [
+        "expand", "neighbors", "edge_between", "intersect", "intersect_many",
+        "difference", "difference_many", "count", "count_compare", "bridge",
+        "ratio", "xor", "rank", "describe", "insufficient_data",
+        "out_of_graph", "insufficient"
+      ]
+    },
+    "slots": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "expected_types"],
+        "properties": {
+          "label": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256,
+            "pattern": "^(?!.*(?:https?://|file:|\\\\|/etc/|/root/|SELECT\\s|INSERT\\s|UPDATE\\s|DELETE\\s|MERGE\\s|DROP\\s|ALTER\\s)).+$"
+          },
+          "expected_types": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 8,
+            "uniqueItems": true,
+            "items": {
+              "enum": ["drug", "gene/protein", "disease", "effect/phenotype", "biological_process", "molecular_function", "cellular_component", "pathway", "anatomy", "exposure"]
+            }
+          }
+        }
+      }
+    },
+    "steps": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {"$ref": "#/$defs/relation"}
+    },
+    "legs": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["slot", "steps"],
+        "properties": {
+          "slot": {"type": "integer", "minimum": 0, "maximum": 3},
+          "steps": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 6,
+            "items": {"$ref": "#/$defs/relation"}
+          }
+        }
+      }
+    },
+    "final_types": {
+      "type": "array",
+      "maxItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["drug", "gene/protein", "disease", "effect/phenotype", "biological_process", "molecular_function", "cellular_component", "pathway", "anatomy", "exposure"]
+      }
+    },
+    "exclude_slot": {"type": ["integer", "null"], "minimum": 0, "maximum": 3},
+    "group_level": {"type": "integer", "minimum": 0, "maximum": 6},
+    "distinct_level": {"type": "integer", "minimum": 0, "maximum": 6},
+    "cmp": {"enum": [">", ">=", "<", "<=", "="]},
+    "n": {"type": "integer", "minimum": 0, "maximum": 1000},
+    "member_leg": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["slot", "steps"],
+          "properties": {
+            "slot": {"type": "integer", "minimum": 0, "maximum": 3},
+            "steps": {
+              "type": "array",
+              "minItems": 1,
+              "maxItems": 6,
+              "items": {"$ref": "#/$defs/relation"}
+            }
+          }
+        }
+      ]
+    },
+    "require_edge": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/relation"}]
+    },
+    "noun": {"type": "string", "minLength": 1, "maxLength": 80},
+    "answer_type": {"enum": ["entity", "entity_list", "short_text", "firewall_block"]},
+    "single_entity": {"type": "boolean"},
+    "refusal": {"type": ["string", "null"], "maxLength": 500},
+    "missing": {"type": ["string", "null"], "maxLength": 160}
+  },
+  "$defs": {
+    "relation": {
+      "enum": [
+        "targets", "side_effect", "indication", "contraindication", "off_label",
+        "disease_protein", "disease_phenotype", "protein_interaction",
+        "pathway_protein", "disease_hierarchy", "phenotype_hierarchy",
+        "drug_interaction", "phenotype_protein"
+      ]
+    }
+  }
+}

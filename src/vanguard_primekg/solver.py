@@ -1,32 +1,57 @@
-"""Orchestration: firewall -> classify -> execute -> finalize (one question).
-
-With ``verbose``/``trace`` it also builds the real hop-by-hop trajectory (the
-edges followed, level by level) — shown on stdout and embedded as the RFP §8.3
-reasoning-trace steps.
-"""
+"""Firewall -> closed planner -> entity resolution -> one DB composition -> finalizer."""
 
 from __future__ import annotations
 
 import time
+from dataclasses import asdict, is_dataclass
+from typing import Any
 
 from . import finalize, firewall
 from ._vendor.models import SessionResult
-from .classify import Plan, classify
-from .trace import build_trace
+from .agent.planner import RegexPlanner, plan_to_payload
 
 
 def _print_header(number: int, text: str) -> None:
     if number:
-        print(f"\n──────── Q{number} ────────")
+        print(f"\n-------- Q{number} --------")
     print(f"Q: {text}")
 
 
 def _unresolved_message(label: str) -> str:
     return (
         f"Could not find '{label}' in PrimeKG. PrimeKG uses generic/DrugBank drug "
-        f"names (e.g. Sildenafil, not Viagra), MONDO disease names, and gene "
-        f"symbols — try the generic or standard name."
+        "names, MONDO disease names, and gene symbols; use the generic or standard name."
     )
+
+
+def _audit_dict(audit: Any, *, planner_name: str, plan: Any) -> dict[str, Any]:
+    if audit is None:
+        payload: dict[str, Any] = {}
+    elif is_dataclass(audit):
+        payload = asdict(audit)
+    elif isinstance(audit, dict):
+        payload = dict(audit)
+    else:
+        payload = {"detail": str(audit)}
+    payload["planner"] = planner_name
+    payload["validated_plan"] = plan_to_payload(plan)
+    return payload
+
+
+def _resolution_records(plan, resolved: list) -> list[dict[str, Any]]:
+    records: list[dict[str, Any]] = []
+    for (label, _types), hit in zip(plan.slots, resolved, strict=True):
+        records.append(
+            {
+                "input": label,
+                "node_id": hit.node_id,
+                "name": hit.name,
+                "node_type": hit.node_type,
+                "method": hit.method,
+                "score": hit.score,
+            }
+        )
+    return records
 
 
 def solve(
@@ -34,103 +59,133 @@ def solve(
     text: str,
     backend,
     *,
+    planner=None,
     verbose: bool = False,
     trace: bool = False,
 ) -> SessionResult:
+    del trace  # traces are always built from actual execution records now
     started = time.monotonic()
 
     verdict = firewall.verdict(text)
     if verdict.malicious:
+        latency = int((time.monotonic() - started) * 1000)
         if verbose:
             _print_header(number, text)
             print(f"  firewall: BLOCKED ({verdict.reason})")
-        return finalize.blocked(number, text, verdict.reason)
+        return finalize.blocked(number, text, verdict.reason, latency_ms=latency)
 
-    plan = classify(text)
+    planner = planner or RegexPlanner()
+    plan, planner_result = planner.plan(text)
+    planner_audit = _audit_dict(planner_result, planner_name=planner.name, plan=plan)
     if verbose:
         _print_header(number, text)
+        print(f"  planner: {planner.name}")
         print(f"  plan: {plan.op}")
 
     if plan.op == "out_of_graph":
-        if verbose:
-            print("  outcome: out-of-graph (not represented in PrimeKG)")
-        return finalize.refused(
-            number, text, "out_of_graph", plan.answer_type, plan.refusal or ""
-        )
-
-    if plan.op == "insufficient_data":
-        hit = backend.resolver.resolve(*plan.slots[0])
         latency = int((time.monotonic() - started) * 1000)
-        if hit is None:
-            if verbose:
-                print(f"  outcome: insufficient_data ({plan.missing}); entity unresolved")
-            return finalize.refused(
-                number, text, "insufficient_data", plan.answer_type,
-                f"PrimeKG does not represent {plan.missing}.", latency_ms=latency,
-            )
-        name, _ntype, summary, edge_ids = backend.engine.node_evidence(hit.node_id)
-        if verbose:
-            print(f"  entity_lookup  -> {name} [{hit.node_id}]")
-            print(f"  outcome: insufficient_data ({plan.missing}); grounded on "
-                  f"{len(edge_ids)} evidence edge(s)")
-        return finalize.insufficient(
-            number, text, plan.missing or "this attribute", name, hit.node_id,
-            summary, edge_ids, latency_ms=latency,
+        return finalize.refused(
+            number,
+            text,
+            "out_of_graph",
+            plan.answer_type,
+            plan.refusal or "This request cannot be represented in PrimeKG.",
+            latency_ms=latency,
+            planner_audit=planner_audit,
         )
 
     if plan.op == "insufficient":
-        if verbose:
-            print("  outcome: unmatched -> insufficient (honest refusal)")
+        latency = int((time.monotonic() - started) * 1000)
         return finalize.refused(
-            number, text, "insufficient", plan.answer_type, "Evidence is insufficient."
+            number,
+            text,
+            "insufficient",
+            plan.answer_type,
+            plan.refusal or "Evidence is insufficient.",
+            latency_ms=latency,
+            planner_audit=planner_audit,
+        )
+
+    resolved = backend.resolve_plan(plan)
+    latency = int((time.monotonic() - started) * 1000)
+    if resolved is None:
+        label = plan.slots[0][0] if plan.slots else "the entity"
+        return finalize.refused(
+            number,
+            text,
+            plan.op,
+            plan.answer_type,
+            _unresolved_message(label),
+            latency_ms=latency,
+            planner_audit=planner_audit,
+        )
+    resolution_records = _resolution_records(plan, resolved)
+
+    if plan.op == "insufficient_data":
+        hit = resolved[0]
+        evidence = backend.engine.node_evidence(hit.node_id)
+        latency = int((time.monotonic() - started) * 1000)
+        return finalize.insufficient(
+            number,
+            text,
+            plan.missing or "this attribute",
+            evidence.name,
+            hit.node_id,
+            evidence.node_type,
+            evidence.summary,
+            evidence.edges,
+            latency_ms=latency,
+            planner_audit=planner_audit,
+            resolution=resolution_records[0],
+            query=evidence.sql,
+            binds=evidence.binds,
         )
 
     if plan.op == "describe":
-        hit = backend.resolver.resolve(*plan.slots[0])
+        hit = resolved[0]
+        evidence = backend.engine.node_evidence(hit.node_id)
         latency = int((time.monotonic() - started) * 1000)
-        if hit is None:
-            if verbose:
-                print("  entity unresolved")
-            return finalize.refused(
-                number, text, "describe", plan.answer_type,
-                _unresolved_message(plan.slots[0][0]), latency_ms=latency,
-            )
-        name, ntype, summary, edge_ids = backend.engine.node_evidence(hit.node_id)
-        if verbose:
-            print(f"  entity_lookup  -> {name} [{hit.node_id}] ({ntype})")
-            print(f"  summarize: {len(edge_ids)} evidence edge(s) across {len(summary)} relation(s)")
-        session = finalize.describe(
-            number, text, name, ntype, hit.node_id, summary, edge_ids, latency_ms=latency
-        )
-        if verbose:
-            print(f"  ANSWER: {session.answer.answer}")
-        return session
-
-    trajectory_steps = None
-    if verbose or trace:
-        lines, trajectory_steps, _ = build_trace(plan, backend)
-        if verbose:
-            for line in lines:
-                print(f"  {line}")
-
-    result = backend.execute(plan)
-    latency = int((time.monotonic() - started) * 1000)
-
-    if result is None:
-        if verbose:
-            print("  outcome: a slot did not resolve -> not found in PrimeKG")
-        label = plan.slots[0][0] if plan.slots else "the entity"
-        return finalize.refused(
-            number, text, plan.op, plan.answer_type, _unresolved_message(label),
+        return finalize.describe(
+            number,
+            text,
+            evidence.name,
+            evidence.node_type,
+            hit.node_id,
+            evidence.summary,
+            evidence.edges,
             latency_ms=latency,
+            planner_audit=planner_audit,
+            resolution=resolution_records[0],
+            query=evidence.sql,
+            binds=evidence.binds,
+        )
+
+    result = backend.execute(plan, resolved=resolved)
+    latency = int((time.monotonic() - started) * 1000)
+    if result is None:
+        return finalize.refused(
+            number,
+            text,
+            plan.op,
+            plan.answer_type,
+            "The validated operation could not be executed safely.",
+            latency_ms=latency,
+            planner_audit=planner_audit,
         )
 
     session = finalize.answered(
-        number, text, plan.op, plan.answer_type, result,
-        noun=plan.noun, single_entity=plan.single_entity, latency_ms=latency,
-        trace_steps=(trajectory_steps if trace else None),
+        number,
+        text,
+        plan.op,
+        plan.answer_type,
+        result,
+        noun=plan.noun,
+        single_entity=plan.single_entity,
+        latency_ms=latency,
+        planner_audit=planner_audit,
+        resolved_entities=resolution_records,
     )
     if verbose:
         print(f"  ANSWER: {session.answer.answer}")
-        print(f"  supported_by: {', '.join(session.answer_supported_by)}")
+        print(f"  support refs: {', '.join(session.answer_supported_by)}")
     return session

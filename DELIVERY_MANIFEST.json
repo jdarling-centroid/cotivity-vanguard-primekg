@@ -1,0 +1,417 @@
+{
+  "created_at": "2026-07-28T20:44:50.524415+00:00",
+  "file_count": 82,
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "c2512192846de608f0042a7d18d76923fe9d2e996c86723f586c0ce7a5b9d0da",
+      "size_bytes": 2604
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "3e4c2bff61244bfcc352f3e58f469b3507a569e324bb33e6cf3f6f075c69e249",
+      "size_bytes": 141
+    },
+    {
+      "path": "AGENTS.md",
+      "sha256": "0ac1f4718bea6cc636f37cca14f27e679ec9f27ef240fab499ceeb78f0f9ebe6",
+      "size_bytes": 3369
+    },
+    {
+      "path": "README.md",
+      "sha256": "0f3b2b28d86e1e80496927922c276a8c0afa945a27d7fbba544b6b0bf42d86c9",
+      "size_bytes": 5560
+    },
+    {
+      "path": "config/primekg-question-sets.yaml",
+      "sha256": "4c815b46d7467152985970415e5f80c665b54f889543f6bef5c350dbe13009ae",
+      "size_bytes": 27633
+    },
+    {
+      "path": "data/datasets/primekg/README.md",
+      "sha256": "43a64c1bc82d464eb333e286a25bc5152c2d459693978e744c0f7b2735929a5f",
+      "size_bytes": 400
+    },
+    {
+      "path": "docker/compose.yaml",
+      "sha256": "a52f241cd7d4f1ee355e26bcaa2af75cfe33bd55b6639c93a23c89ed2762eb7b",
+      "size_bytes": 945
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "sha256": "a5496f7df1ed0f5b8b3aa3f09da6ea40d895baa737da72bfb720ba4fdf7e8944",
+      "size_bytes": 6974
+    },
+    {
+      "path": "docs/DECISIONS.md",
+      "sha256": "483a0ed45ecf5fa8868c2f53961f8699f01bb46baeeedc1a686a3fa0c6d224a8",
+      "size_bytes": 3191
+    },
+    {
+      "path": "docs/FINAL_HANDOFF.md",
+      "sha256": "7deb0351ccd7660286d20cf28d4222f9de7c62fab7e8f54e0e4f766460313115",
+      "size_bytes": 11757
+    },
+    {
+      "path": "docs/QUESTION_TAXONOMY.md",
+      "sha256": "be2d93e8fdcd2d587f41aeb89885c13487bdbd6e8419dafad9071082c67a1b22",
+      "size_bytes": 9671
+    },
+    {
+      "path": "docs/TRACK_A_COMPLIANCE.md",
+      "sha256": "e684e52bdccafdd98fcc9f0c90ad0aa24ea99a69f567ebcebbe1778041214fc2",
+      "size_bytes": 5018
+    },
+    {
+      "path": "docs/TRACK_A_REPORTING_ADDENDUM.md",
+      "sha256": "9ce7be23f3138c420583d0f329cab1486f399cfeaeb03e29b8bc33609e431cd1",
+      "size_bytes": 4956
+    },
+    {
+      "path": "down.sh",
+      "sha256": "db87c46eb31b80e9dc44319fa9fbe75e6e81038c84a8314ae63be17321e74d34",
+      "size_bytes": 611
+    },
+    {
+      "path": "pyproject.toml",
+      "sha256": "984613626c525ef8f61feb5199d4709904b136581c1b5be0dbee04486f93f533",
+      "size_bytes": 709
+    },
+    {
+      "path": "reference/agent/__init__.py",
+      "sha256": "4552c8d8d1096fd868f46dcfaf59ad598c86f00fd875d602f6d858308b7898ae",
+      "size_bytes": 690
+    },
+    {
+      "path": "reference/agent/answer_formatter.py",
+      "sha256": "12ff4731beb0330aa18ec2ada0c537765a53d4bd1d2e56ddd37e8681be69a109",
+      "size_bytes": 28027
+    },
+    {
+      "path": "reference/agent/finalizer.py",
+      "sha256": "cc10788d1f9ab67b15113873d61342b545acedc6ba4e2758ad2403c6fbc3a35b",
+      "size_bytes": 8485
+    },
+    {
+      "path": "reference/agent/llm.py",
+      "sha256": "000cf71edaf50dc451cc3bd6f09c75b3f268b6c259371463d354312e2fb36d16",
+      "size_bytes": 24559
+    },
+    {
+      "path": "reference/agent/models.py",
+      "sha256": "c2fc190862338a6e88b131f201ea2207cf81a2466e8d637c1b2d0c1e733a2339",
+      "size_bytes": 3540
+    },
+    {
+      "path": "reference/agent/prescan.py",
+      "sha256": "0b033ff451b62ebca651585f369ed015874a8f047add298630a7a01fc7a74772",
+      "size_bytes": 4522
+    },
+    {
+      "path": "reference/agent/prompt_guard.py",
+      "sha256": "955eb7938b64de09fe0dfcc65978558d7d1763860c90b5a93475c9b041163ea0",
+      "size_bytes": 4460
+    },
+    {
+      "path": "reference/agent/runner.py",
+      "sha256": "a15203b6fa69da402f8f996ba0442cf672d4d9c438dcf1b190442d6cff138399",
+      "size_bytes": 103264
+    },
+    {
+      "path": "reference/agent/scoped_tools.py",
+      "sha256": "ce25f8f395e7c1657b542f2037deee511becbe2f4b4b7ace813e03c9ebe257fa",
+      "size_bytes": 2839
+    },
+    {
+      "path": "reference/agent/tools.py",
+      "sha256": "5ea2b756ed86a6567570ffbd9ab18af78853b9e55b3a51e0f862eed638733646",
+      "size_bytes": 19887
+    },
+    {
+      "path": "reference/importers/common.py",
+      "sha256": "6d32219b7d263b4450c2c8da4821a263c1bac19519ff4e16aa9c21e692861e10",
+      "size_bytes": 4445
+    },
+    {
+      "path": "reference/importers/primekg.py",
+      "sha256": "9507f07cfc1cadb55ce8204247c0273d30600b804262e13798937e6b7387ce4d",
+      "size_bytes": 13197
+    },
+    {
+      "path": "reference/rfp/README.md",
+      "sha256": "5b1249ccd3aa157d0a817993b8a9772a824cf0fd42f7b423afff6297e67d6b35",
+      "size_bytes": 4307
+    },
+    {
+      "path": "reference/rfp/Vendor_dataset_kg_FINAL.pdf",
+      "sha256": "9061b5d5839814be3e6f44fccdce8654b525f107edce58d002c6e9e4fde4972c",
+      "size_bytes": 135466
+    },
+    {
+      "path": "reference/rfp/cotiviti-clarification-questions.md",
+      "sha256": "8b8df67b78342dacd99f7faace4b716882907cee738d73b9baa64e2958443aff",
+      "size_bytes": 5257
+    },
+    {
+      "path": "reference/rfp/document-isolation-methodology.md",
+      "sha256": "eb3efc239e3f9d4d8e92fa56c5ffedfb8d8b36e949ee85823864b56bedc192a1",
+      "size_bytes": 5079
+    },
+    {
+      "path": "reference/rfp/o26ai-migration-plan.md",
+      "sha256": "5eac03562d4ffef064ebe80eef00393523afb51e04053c9543a042ababef2bd0",
+      "size_bytes": 8054
+    },
+    {
+      "path": "reference/rfp/vanguard_evaluation_criteria.pdf",
+      "sha256": "8bbddf280f3fe2656589b571d2a968e4eb1e0502774f63cf23ce8f4cc7ab2b16",
+      "size_bytes": 242397
+    },
+    {
+      "path": "reference/schemas/config.schema.json",
+      "sha256": "96212d88a977fd911e814d21e99b04fedf6a3ae49f3da87ef51f3c3919f9093d",
+      "size_bytes": 3620
+    },
+    {
+      "path": "reference/schemas/mcp-tools.schema.json",
+      "sha256": "2762212e21e76dc9ea6a229a2bbf66530cf0c566b5a48123c8b0ff7527e53de6",
+      "size_bytes": 14658
+    },
+    {
+      "path": "reference/schemas/oracle.sql",
+      "sha256": "aed53d0b8b84158f8597deda94690272a38753ece020f43b8255c330dbf24a11",
+      "size_bytes": 19814
+    },
+    {
+      "path": "schemas/planner-plan.schema.json",
+      "sha256": "0d9d1bfc0be513d457cd602a32a9d3648b4edde69670cde4a10856e28f76b7d0",
+      "size_bytes": 4035
+    },
+    {
+      "path": "schemas/primekg-o26.sql",
+      "sha256": "ba21ac9c284e71380f383312289729ec3d7d1277a061cdd703e4524dcf3915d6",
+      "size_bytes": 2278
+    },
+    {
+      "path": "scripts/ask.py",
+      "sha256": "10c4b55147af563db4664f347ff4e0a3e9c1608afcb087df930e06e06cb94fef",
+      "size_bytes": 1750
+    },
+    {
+      "path": "scripts/compare-planners.py",
+      "sha256": "28ce6e50b46696e8769a116f358e0cd633b581d7c6fc3cd9edba17d9975757b9",
+      "size_bytes": 3994
+    },
+    {
+      "path": "scripts/run-primekg-questions.py",
+      "sha256": "4f3d53a7f56b36e8be867e39d6f50a4a02c9d84f694ffd94b2eeacb666507ce2",
+      "size_bytes": 16282
+    },
+    {
+      "path": "scripts/smoke_test.py",
+      "sha256": "a623654eb480e497c8c3f297595fd7347c6719f351789a000703182e77711b51",
+      "size_bytes": 939
+    },
+    {
+      "path": "scripts/validate-track-a.py",
+      "sha256": "30c77e777275d2a44079a889dd4c4209b83ac805abd2f62f68b0150927baf90d",
+      "size_bytes": 23434
+    },
+    {
+      "path": "src/vanguard_primekg/__init__.py",
+      "sha256": "0ddd217e9e58571843640d385965f84586d34d5744ae06eb9d4ceb1a0b001002",
+      "size_bytes": 130
+    },
+    {
+      "path": "src/vanguard_primekg/_vendor/__init__.py",
+      "sha256": "a2a1e408b05df55a95dd094411babad1ae0702083423ccf8cb1c84a506d853f2",
+      "size_bytes": 80
+    },
+    {
+      "path": "src/vanguard_primekg/_vendor/finalizer.py",
+      "sha256": "e6d769d280d4c4b5db080c5875f16d55f21069c7ac5da67db5e47245b2ba4dc3",
+      "size_bytes": 9727
+    },
+    {
+      "path": "src/vanguard_primekg/_vendor/models.py",
+      "sha256": "3601934dad1fd14354b1ea49fff6336b69fe1ff9fac84536d422aa35515a5f8c",
+      "size_bytes": 3664
+    },
+    {
+      "path": "src/vanguard_primekg/agent/__init__.py",
+      "sha256": "2bb79f85706b089572533b7a4fc6879619ee23213e1f4a1ad4cd793756877268",
+      "size_bytes": 220
+    },
+    {
+      "path": "src/vanguard_primekg/agent/oci_llm.py",
+      "sha256": "4cd7ca88927fa6c240c7551fde525fd4e3f3f8d86e0f0a214c8b4f28fcb73c1c",
+      "size_bytes": 3380
+    },
+    {
+      "path": "src/vanguard_primekg/agent/planner.py",
+      "sha256": "97cbf7b069c7b444741a046743e6ea8aaa8863e77927616eb6f6b554d0caf9ca",
+      "size_bytes": 9402
+    },
+    {
+      "path": "src/vanguard_primekg/agent/prompt.py",
+      "sha256": "fa43a2e746f7c2882230eb9cc3df63a4eb1cc98fe1404cf088f275fe4ad6fb02",
+      "size_bytes": 1767
+    },
+    {
+      "path": "src/vanguard_primekg/backends/__init__.py",
+      "sha256": "63b786410762913778960e54d38977f5ac3667a0b1f22aa97709a45a492103cc",
+      "size_bytes": 245
+    },
+    {
+      "path": "src/vanguard_primekg/backends/pgq.py",
+      "sha256": "5960ecf6dbf93dd9b96dc7510adb8156d8ee008f0ba1e38118e20ae382fc9dba",
+      "size_bytes": 4678
+    },
+    {
+      "path": "src/vanguard_primekg/backends/select_ai.py",
+      "sha256": "849dc0cb287219ca871068ed68eaae4c805cf374b92a9aebcc294684bb989be3",
+      "size_bytes": 1553
+    },
+    {
+      "path": "src/vanguard_primekg/classify.py",
+      "sha256": "e0bbe50235f831f30d8146ef035991630044ffa3b0f0bfa24a0bbc90b48c48da",
+      "size_bytes": 35259
+    },
+    {
+      "path": "src/vanguard_primekg/config.py",
+      "sha256": "339f47595932b192ad17046384b1e40329a3c0092981a7bd89620556b25d5a29",
+      "size_bytes": 2024
+    },
+    {
+      "path": "src/vanguard_primekg/db.py",
+      "sha256": "79f6b0c3b80ce7022bce5a81cecd9a397071800840013a042521e1d5a1a62d4c",
+      "size_bytes": 1374
+    },
+    {
+      "path": "src/vanguard_primekg/finalize.py",
+      "sha256": "02b1e1668a59e0ddda43a8d8dbaf91ac431e98aada57782d13e9e9820cb8e4f0",
+      "size_bytes": 20160
+    },
+    {
+      "path": "src/vanguard_primekg/firewall.py",
+      "sha256": "a1455030119ea4e036a69eb3c311692500796de21d2e6ea28fb79a4e81f69d46",
+      "size_bytes": 6152
+    },
+    {
+      "path": "src/vanguard_primekg/load_primekg.py",
+      "sha256": "6d549ebc0a67a7b0ac283330214e4abc026cf951cf1f1531d687c7a7f41aa9d1",
+      "size_bytes": 11955
+    },
+    {
+      "path": "src/vanguard_primekg/logging.py",
+      "sha256": "d9ba7b611f980c98daee5c23e0e788f7a4021140baf94177e89ff1b8acd9e602",
+      "size_bytes": 647
+    },
+    {
+      "path": "src/vanguard_primekg/oracle_compat.py",
+      "sha256": "a9adcc69863e9fef393f266118123294500751e2ca8106d2edb552210f795fe9",
+      "size_bytes": 1131
+    },
+    {
+      "path": "src/vanguard_primekg/query_engine/__init__.py",
+      "sha256": "7b48c2263a0402f70497164aa45e17e665e4d73d58494627d75ec67ad50bfb10",
+      "size_bytes": 274
+    },
+    {
+      "path": "src/vanguard_primekg/query_engine/engine.py",
+      "sha256": "60e76828afa87ef04f4051373169e9db944d92224ce25e9ec6de15273f27cc17",
+      "size_bytes": 37938
+    },
+    {
+      "path": "src/vanguard_primekg/query_engine/specs.py",
+      "sha256": "1a4da558725b04de2fc26708b71c9b355577dc3e6fb9df606c9d9f67b4084690",
+      "size_bytes": 2091
+    },
+    {
+      "path": "src/vanguard_primekg/relations.py",
+      "sha256": "54e13ef86e055236b48e32d7efefe4f51e6b74bf3af132b0de47617fa48a6ce4",
+      "size_bytes": 1735
+    },
+    {
+      "path": "src/vanguard_primekg/resolve.py",
+      "sha256": "50be98e7309421be8bb54789301ac59521a32955cce91c317d468a3789310cb4",
+      "size_bytes": 7111
+    },
+    {
+      "path": "src/vanguard_primekg/solver.py",
+      "sha256": "83b38ef471cd9b39b708137b4be8f0ce7f11f41407d4247f8d40e50975751512",
+      "size_bytes": 5876
+    },
+    {
+      "path": "src/vanguard_primekg/submission.py",
+      "sha256": "f716c9898d1152039eaa70c39277ec7c801edc18d2a0f3355e1351af1e6fb501",
+      "size_bytes": 914
+    },
+    {
+      "path": "tests/test_agent_planner.py",
+      "sha256": "b57d1cca4aeaabc4e1e02150122c079cee762ef943d95e7c17211fe15387b832",
+      "size_bytes": 4396
+    },
+    {
+      "path": "tests/test_classify.py",
+      "sha256": "77701f72ac3a100c376ad4b0dcbbe2150a531fe87c5993d5298f26a9422f11ef",
+      "size_bytes": 2354
+    },
+    {
+      "path": "tests/test_compare_planners.py",
+      "sha256": "5cf563a17f3f2b621bcfdde72c834d90ce088dd47820ba88254f995339b76f01",
+      "size_bytes": 1988
+    },
+    {
+      "path": "tests/test_config.py",
+      "sha256": "c8a2d2c51fb4c4fe30ce7554ddb79bf5b35ca48f571396b14a277bac9367b4bf",
+      "size_bytes": 1287
+    },
+    {
+      "path": "tests/test_engine_integration.py",
+      "sha256": "574ddeb7b089a72a0cd96338d6acebf746431a3d978f86931267c0fe28275c95",
+      "size_bytes": 4448
+    },
+    {
+      "path": "tests/test_finalize.py",
+      "sha256": "f139e41979b4df913d1629901b5a01f5eb2c4310cdd33444baa2c7e0e13f2d54",
+      "size_bytes": 3667
+    },
+    {
+      "path": "tests/test_firewall.py",
+      "sha256": "17dffa8b8f33f1e32388df7ccd73f41d24d823785c073585606792b27da092ed",
+      "size_bytes": 1864
+    },
+    {
+      "path": "tests/test_loader_edges.py",
+      "sha256": "87a07c843e78ecdd1d6c81a25f56880cd53d21f4b64e358dd71898f11865c47f",
+      "size_bytes": 904
+    },
+    {
+      "path": "tests/test_oci_adapter.py",
+      "sha256": "f1d059851194dfcab5f366263a96d350dc84c02da67e714b02e005c68ea36d99",
+      "size_bytes": 3118
+    },
+    {
+      "path": "tests/test_query_engine_contract.py",
+      "sha256": "1792ad321dda89cf702250ac432b6ab73e3d338b6e1e0f005e7c13d3560b890f",
+      "size_bytes": 4137
+    },
+    {
+      "path": "tests/test_solver_security.py",
+      "sha256": "faed7f994510ee1eff0c192af28929ed3e691d56e046002ec1fa89959c6d0366",
+      "size_bytes": 819
+    },
+    {
+      "path": "tests/test_track_a_artifacts.py",
+      "sha256": "eac7d7bbc915c25f7213bba6930049ed8c17d2152ff8cce08bc874a12ac280c2",
+      "size_bytes": 3720
+    },
+    {
+      "path": "up.sh",
+      "sha256": "2b03224954344e3181ef7a4bef0362d97d458616adc986daca263eff46974054",
+      "size_bytes": 896
+    }
+  ],
+  "scope": "Stage 1 Track A PrimeKG implementation delivery; not authoritative submission artifacts"
+}

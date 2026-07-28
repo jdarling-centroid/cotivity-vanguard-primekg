@@ -62,14 +62,14 @@ def load_settings() -> Settings:
 
     database = DatabaseConfig(
         user=os.environ.get("MC_DATABASE__USER", "MC"),
-        password=os.environ.get("MC_DATABASE__PASSWORD", "Welcome1_local"),
+        password=os.environ.get("MC_DATABASE__PASSWORD", ""),
         dsn=dsn,
     )
     return Settings(
         database=database,
         admin_user=os.environ.get("ORACLE_ADMIN_USER", "SYSTEM"),
         admin_password=os.environ.get(
-            "ORACLE_ADMIN_PASSWORD", os.environ.get("ORACLE_PWD", "Welcome1_local")
+            "ORACLE_ADMIN_PASSWORD", os.environ.get("ORACLE_PWD", "")
         ),
         repo_root=_REPO_ROOT,
     )

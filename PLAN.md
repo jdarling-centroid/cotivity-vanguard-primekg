@@ -1,203 +1,492 @@
-# Migration Plan — Regex Prototype → OCI AI Agent
+# Track A Completion Plan — PrimeKG Agent + Valid RFP Submission
 
-> **For the next agent.** This repo currently answers the 100 PrimeKG questions
-> with a **hard-coded regex classifier** (`classify.py`) that maps each benchmark
-> question's *wording* to a query plan, plus a self-graded "100/100" metric that
-> only checks "did we return edges," not correctness. **Both are unacceptable in
-> an RFP response** (misrepresentation risk) and must be removed. Replace the
-> classifier with the OCI Generative AI agent so the system *reasons* to the
-> answer instead of pattern-matching known questions.
+> **Handoff for the next agent.** Execute this plan end to end. The scope is the
+> **Stage 1 Track A PrimeKG submission only**. Track B has already been submitted
+> and must not be rebuilt or changed. The goal is a complete, auditable Track A
+> package that can be sent to Cotiviti—not merely code that runs locally.
 
----
+## 0. Read first and preserve these boundaries
 
-## 1. What must change and what must not
+Before changing code, read:
 
-**Retain as the validation oracle (do NOT delete yet):**
-- `src/vanguard_primekg/classify.py` — the regex intent layer. It hard-codes the
-  100 questions' answer *paths*, so it is the **known-good baseline**: for each of
-  the 100 it tells you which tools/primitives the correct answer uses. Keep it
-  wired behind a `--planner regex` switch and use it to validate the agent. Only
-  after the agent matches it on all 100 do you **deprecate** it — move it to
-  `reference/` (or `classify_legacy.py`) for reference, do not lose it.
+1. `AGENTS.md`
+2. `README.md`
+3. `docs/ARCHITECTURE.md`
+4. `docs/QUESTION_TAXONOMY.md`
+5. `reference/rfp/vanguard_evaluation_criteria.pdf`, especially §§3, 7, 8.2,
+   8.3, and 8.4
+6. `reference/rfp/Vendor_dataset_kg_FINAL.pdf`
+7. `reference/rfp/cotiviti-clarification-questions.md`
 
-**Remove (fake metric only):**
-- The self-graded pass metric in `scripts/run-primekg-questions.py`
-  (`_meets` / "pass N/M"). It only checks "did we return edges," not correctness.
-  Replace it with a real diff against the regex baseline + independent gold
-  (§6). Do not report a self-graded number as accuracy.
+Track A uses the provided PrimeKG graph. It submits QA results and reasoning
+traces; it does **not** submit graph nodes, graph edges, or a graph manifest.
+Track B and Stage 2 are out of scope.
 
-**Keep (legitimate, reusable):**
-- `query_engine/engine.py` — the general graph-composition primitives
-  (expand / intersect / count / difference / rank / bridge / ratio, etc.). These
-  do the set math **in one SQL query each**. They become the agent's **tools**.
-- `resolve.py` (entity resolution), `firewall.py` (adversarial blocking),
-  `finalize.py` + `_vendor/finalizer.py` (RFP §8.2/§8.3 output), the schema,
-  loader, `db.py`/`config.py`, `walk_hops`/`trace.py` (for the trace).
-- `reference/agent/llm.py` — the OCI `ChatModel` abstraction (`ModelTurn`,
-  `ToolCall`, `make_chat_model`). Reuse it to talk to OCI.
+Preserve these invariants:
 
-**Invariants that do NOT change:**
-- **The database composes; the agent orchestrates.** The agent decides *which*
-  graph operation to run; each operation is one parameterized DB query that does
-  the join/intersection/count. The agent must **never** intersect/count/join sets
-  in its own text (that is the exact failure of `reference/agent/runner.py` —
-  study it as the cautionary example, do not copy its `_primekg_*` handlers).
-- All four `drug_protein` roles = "target" (target/enzyme/carrier/transporter).
-- PrimeKG is undirected; traversal is `source_node_id IN S` + predicate.
-- Every answered fact is grounded in **real node/edge ids returned by the DB**.
-  The agent never invents ids and never answers a fact PrimeKG lacks — it refuses
-  honestly (grounded `insufficient_data`).
-- Firewall runs before the agent. Local-first; no remote without approval.
+- **Oracle composes; the model plans.** Every multi-hop, intersection,
+  difference, count, comparison, rank, ratio, or negation operation resolves to
+  one parameterized, read-only SQL/PGQ query. Never ask the model to merge,
+  intersect, count, rank, or compare result sets across tool calls.
+- The four `drug_protein` roles `target`, `enzyme`, `carrier`, and `transporter`
+  all count as “target.”
+- PrimeKG traversal is direction-agnostic because relevant edges are loaded in
+  both directions.
+- Preserve native `predicate` and `display_relation`.
+- Every submitted answer claim must be supported by real database-returned node
+  and edge IDs. Never invent IDs, citations, clinical context, or unavailable
+  facts.
+- Firewall evaluation occurs before model or database execution.
+- Database access remains local. Do not provision or write to Autonomous or any
+  remote schema. Do not set `VPK_ALLOW_REMOTE=1`.
+- OCI credentials and configuration remain uncommitted and must never be
+  printed.
+- Keep scratch output in `.tmp/`.
 
----
+The existing `AGENTS.md` cautions against porting the old reference agent loop.
+Do not port that runner or its `_primekg_*` handlers. The approved replacement
+is a narrow planner that selects one typed database-composition operation and
+cannot perform set mathematics itself. Update architecture documentation to
+make that distinction explicit; do not silently violate the contract.
+
+## 1. Current problem
+
+The repository currently reports “100/100,” but
+`scripts/run-primekg-questions.py::_meets` only checks outcome class and whether
+some evidence edges were returned. It does not compare answer sets with a gold
+answer. This is useful as a structural smoke check but is not an accuracy score
+and must not be presented as one.
+
+`classify.py` also contains extensive benchmark-shaped regex rules. They are a
+valuable deterministic regression baseline, but relying on them as the final
+planner creates overfitting and representation risk. Retain them until the new
+planner is validated; do not delete the only known working baseline.
+
+The current finalization path also leaves `retrieved_context` empty and caps
+evidence independently of the number of answer nodes. For the RFP citation
+gate, every answer claim needs resolvable PrimeKG `source_ref` evidence and a
+complete supporting path.
 
 ## 2. Target architecture
 
-```
+```text
 question
-  │
-  ▼ firewall.verdict()                       → blocked (adversarial)
-  ▼ AGENT LOOP  (OCI Generative AI, xai.grok-4.3 via .oci/config)
-  │    system prompt = graph vocabulary + tool catalog + "DB composes, you don't"
-  │    repeat:
-  │      model → ToolCall(s)  →  execute against DB  →  tool result (nodes+edges)
-  │    until model emits final answer
-  ▼ finalize.*  (real answer prose + SUPPORTED_BY from the tools' real edge ids)
-  ▼ §8.2 qa-results  +  §8.3 reasoning-traces  (built from the ACTUAL tool trajectory)
+  |
+  v
+deterministic firewall
+  |-- malicious --> deterministic blocked result
+  v
+typed planner
+  |-- regex baseline, or
+  |-- OCI model selects exactly one validated Plan/composition operation
+  v
+entity resolution
+  v
+one parameterized read-only Oracle SQL/PGQ composition query
+  |
+  +--> answer nodes
+  +--> per-answer supporting path nodes/edges
+  +--> executed SQL + binds (with secret-safe serialization)
+  v
+deterministic finalizer
+  |
+  +--> vendor answer derived only from returned rows
+  +--> PrimeKG source_ref citations and retrieved_context
+  +--> actual ordered reasoning trace
+  v
+RFP validation
+  v
+Track A submission artifacts and reporting addendum
 ```
 
-The agent is the reasoning brain. The tools are thin wrappers over the existing
-engine primitives — **each tool call is one DB query**, so composition stays in
-Oracle and the agent only plans/sequences and phrases the grounded result.
+The model may:
 
----
+- recognize the question operation;
+- extract entity labels and expected types;
+- select relations from a closed vocabulary;
+- populate one typed `Plan`;
+- request clarification or fail closed when uncertain.
 
-## 3. OCI wiring
+The model may not:
 
-- Provider `oci_generative_ai`, model `xai.grok-4.3`, region from `.oci/config`
-  (same as `../ai-proposal`; see `config/agent-worker/config.yaml` there and the
-  commented `MC_MODELS__ORCHESTRATOR__*` block in `.env.example`).
-- Reuse `reference/agent/llm.py::make_chat_model` (it already builds an OCI
-  `ChatModel` from provider/model/region/config-file). If it needs the sibling's
-  `..config`, vendor a minimal `ModelConfig` into `src/vanguard_primekg/_vendor/`.
-- Auth: `.oci/config` + key (gitignored). Add `MC_MODELS__ORCHESTRATOR__PROVIDER`,
-  `__MODEL_ID`, `__REGION`, `__CONFIG_FILE` to `.env`. Temperature **0** for
-  determinism; validate/retry on malformed tool calls.
-- Local dev without OCI creds: keep a deterministic `StubChatModel`
-  (`reference/agent/llm.py` has one) so tests run offline.
+- write or execute arbitrary SQL;
+- choose IDs not returned by entity resolution;
+- combine result sets;
+- calculate counts or rankings;
+- author unsupported final claims;
+- treat question or graph text as executable instructions.
 
----
+Final answer prose must be generated deterministically from validated database
+results. Preserve the raw planner response for audit, but do not submit it as
+the answer.
 
-## 4. Tool catalog (the agent's only way to touch the graph)
+## 3. Planner contract
 
-Expose the engine primitives as tools with JSON schemas (mirror
-`reference/agent/tools.py::configured_tool_schemas`). Each returns
-`{nodes:[{id,name,type}], edges:[edge_id], sql}` from **one** DB query so set math
-never leaves the database:
+Freeze a provider-neutral JSON schema for the existing `Plan` operations rather
+than exposing low-level traversal results for the model to combine.
 
-| tool | backed by | purpose |
-|---|---|---|
-| `resolve_entity(label, type?)` | `resolve.py` | label → node id(s); returns candidates + method; agent disambiguates, never invents ids |
-| `neighbors(node_id, relation, roles?)` | `engine.expand` (1 hop) | one-hop traversal (targets, side effects, indications, PPI, …) |
-| `chain(base_id, [relations])` | `engine.expand` | multi-hop chain, set-collapsed, in one query |
-| `intersect(legA, legB, …)` | `engine.intersect`/`intersect_many` | "both … and …" in one query |
-| `difference(legA, minus…)` | `engine.difference`/`difference_many` | negation/"NOT" |
-| `count_filter(base, steps, group, distinct, op, n)` | `engine.count_threshold` | "at least/exactly n …" |
-| `compare_counts`, `rank_top`, `bridge_count`, `ratio_shared`, `xor` | same-named engine methods | quantified/aggregate/ranking questions |
-| `describe(node_id)` | `engine.node_evidence` | what PrimeKG records about an entity (also grounds refusals) |
+Add:
 
-Give the model, in the system prompt: the **relation vocabulary** (the 13
-predicates + the 4 target roles), the **undirected-graph** fact, and the rule
-**"to combine sets, call one composition tool — never merge results yourself."**
-Provide 5–8 *general* few-shot examples (varied phrasings mapped to tool calls),
-explicitly **not** the benchmark's exact sentences.
+- `schemas/planner-plan.schema.json`
+- `src/vanguard_primekg/agent/oci_llm.py`
+- `src/vanguard_primekg/agent/planner.py`
+- `src/vanguard_primekg/agent/prompt.py`
+- `src/vanguard_primekg/agent/__init__.py`
 
----
+The schema must:
 
-## 5. Reasoning trace (§8.3) — from the real trajectory
+- enumerate allowed operations;
+- enumerate allowed relation identifiers;
+- type and bound every slot, leg, step, comparison, and threshold;
+- reject unknown properties;
+- limit chain depth, number of legs, strings, and numeric thresholds;
+- exclude SQL, URLs, file paths, tool names, and arbitrary code;
+- require an explicit `insufficient_data` or `out_of_graph` result when the
+  requested attribute cannot be represented.
 
-Build `reasoning-traces.json` from the **agent's actual tool calls**, not a
-reconstructed walk: `resolve_entity` → `entity_lookup` step; each graph tool →
-`edge_traversal`/composition step with the real edge ids it returned;
-`final_answer` + `answer_supported_by` from the last grounded result. This is a
-genuine, gradeable trajectory (a wrong path is now visible), which is the point
-of §8.3.
+Use the relation vocabulary and engine primitives already defined in the
+repository. Do not create per-question handlers.
 
----
+Add `--planner regex|agent`, keeping `regex` available throughout validation.
+Do not make `agent` the default until all mandatory gates below pass.
 
-## 6. Honest correctness (replace the fake metric)
+### OCI wiring
 
-There is **no** self-declared pass rate. Two oracles:
-1. **Regex baseline (bootstrap regression oracle).** Run the retained regex
-   planner over the 100 and record its tool/answer path per question. The agent
-   must reproduce the same answer set (and cite existing edges) for each. Any
-   divergence is a real diff to investigate — this is how you validate the agent
-   before deprecating the regex. It is same-author, so it is a regression oracle,
-   not proof of truth.
-2. **Independent gold (truth).** For truth, author a **separate** reference answer
-   per question (hand-written SQL or a reviewed spec, authored independently of
-   both the agent and the regex) and spot-check by hand. Report answer
-   correctness, multi-hop accuracy, citation validity, adversarial block rate,
-   latency — and state clearly the final grade is Cotiviti's **withheld** key.
-3. Never mark a question "pass" just because edges were returned.
+Adapt only the OCI chat abstraction from `reference/agent/llm.py`; do not copy
+the old runner. The existing `StubChatModel` is not directly reusable because it
+calls `hybrid_search`, `traverse_graph`, and `get_fragment`. Implement a new
+PrimeKG planner stub with fixtures for offline tests.
 
----
+Configuration must include:
 
-## 7. Migration steps (phased, each ends test-green)
+- provider;
+- model ID;
+- region/config-file or OCI SDK configuration;
+- model and prompt version;
+- timeout;
+- maximum tokens;
+- deterministic settings supported by the selected endpoint;
+- bounded retries for transport failures and malformed plans.
 
-- **P0 — Freeze the primitive API.** Confirm the engine methods are the stable
-  tool surface; write `schemas/tool-catalog.json` (tool names + arg schemas).
-- **P1 — OCI ChatModel.** Vendor/adapt `make_chat_model`; smoke-test a live OCI
-  call and the offline `StubChatModel`.
-- **P2 — Agent runner.** New `src/vanguard_primekg/agent/runner.py`: firewall →
-  tool loop → grounded answer. Tools wrap the engine primitives. **No** per-
-  question handlers. Reuse `Recorder` to capture the trajectory.
-- **P3 — Wire finalize.** §8.2/§8.3 built from the agent's trajectory + real ids.
-- **P4 — Validate against the regex baseline.** Both planners run the 100 behind
-  a `--planner agent|regex` switch; diff their answer sets question-by-question
-  (§6.1) until the agent matches on all 100 and passes the independent gold
-  spot-check (§6.2). Keep the regex planner wired throughout this phase.
-- **P5 — Deprecate the regex classifier** (only now): move it to `reference/`
-  (or `classify_legacy.py`) for reference; make the agent the default planner.
-  Remove the `_meets` fake metric; keep the diff/gold scorer.
-- **P6 — (approval-gated)** full 8.1M load, Select AI comparison, remote/
-  Autonomous.
+Validate whether the OCI endpoint actually accepts temperature/determinism
+parameters before documenting them. Do not claim “temperature 0” unless it is
+sent and honored by the SDK/model.
 
----
+Live OCI calls require available credentials and must not expose configuration
+or key material. Unit tests must run without OCI access.
 
-## 8. Files
+## 4. Database execution and evidence coverage
 
-**Add:** `src/vanguard_primekg/agent/{runner.py,tools.py,oci_llm.py}`,
-`schemas/tool-catalog.json`, `tests/gold/*.json` (independent ground truth),
-`scripts/score.py` (diff vs regex baseline + gold).
-**Change:** `solver.py` (add agent path behind `--planner agent|regex`), `ask.py`
-+ harness (planner switch, replace `_meets` with the diff/gold scorer),
-`finalize.py` (trace from trajectory), `.env`/`config.py` (OCI creds).
-**Deprecate only after validation (P5):** `classify.py` → `reference/` /
-`classify_legacy.py` (retain for reference; do not delete).
+Keep `query_engine/engine.py` as the database composition layer. Extend return
+types as necessary so a single query returns:
 
----
+```json
+{
+  "answer_nodes": [{"id": "...", "name": "...", "type": "..."}],
+  "support": [
+    {
+      "answer_node_id": "...",
+      "path_nodes": ["..."],
+      "path_edges": ["..."],
+      "predicates": ["..."]
+    }
+  ],
+  "sql": "...",
+  "binds": {"safe_name": "..."},
+  "truncated": false
+}
+```
 
-## 9. Pitfalls (do not repeat)
+Mandatory evidence rules:
 
-- **LLM set-math across tool calls** — the reason `reference/agent/runner.py`
-  failed. Force composition into single-query tools; the agent picks the tool.
-- **Hallucinated entity/edge ids** — ids come only from tool results; validate
-  every id the agent cites against what the DB returned.
-- **Overfit few-shots** — keep examples general and few; never paste benchmark
-  sentences.
-- **Non-determinism** — temperature 0, validate tool JSON, bounded retries,
-  fail closed to an honest refusal (never a guess).
-- **Firewall bypass** — run `firewall.verdict` before the agent; never let the
-  agent execute instructions embedded in question/node text.
+- Every answer node stated in `vendor_answer` must have at least one complete
+  supporting path returned by the authoritative composition query.
+- `graph_nodes_used`, `graph_edges_used`, `citations`,
+  `retrieved_context`, trace steps, and `answer_supported_by` must be derived
+  from those paths.
+- Every cited node/edge must exist in local `pk_nodes`/`pk_edges`.
+- Every cited edge must connect the claimed path endpoints and match the claimed
+  predicate/display relation.
+- Do not cite an arbitrary capped sample as support for uncited answer nodes.
+- If output limits apply, submit only fully supported answer nodes and explicitly
+  mark truncation in an additional field and answer text. Never imply a complete
+  list when only a subset is returned.
+- Insufficient-data refusals must resolve the entity and cite real adjacent
+  PrimeKG records while clearly stating that those records do not contain the
+  requested attribute.
+- Firewall blocks and truly unresolved/out-of-graph questions may have no graph
+  evidence, but their trace must accurately record the disposition.
 
----
+Keep queries parameterized and read-only. Add plan complexity limits before SQL
+construction and preserve the database timeout.
 
-## 10. Definition of done
+## 5. RFP §8.2 QA records
 
-The OCI agent answers arbitrary PrimeKG questions by orchestrating the general
-DB-composition tools; there is **no** question-specific code; every answer is
-grounded in DB-returned ids with a real hop-by-hop §8.3 trace; correctness is
-measured against an **independent** ground truth (not a self-graded proxy);
-adversarial questions are blocked; unavailable facts are refused honestly. Only
-then discuss remote/Autonomous + Select AI.
+Produce exactly one JSONL record per supplied Track A question. Use the RFP
+minimum field names without renaming or omission:
+
+- `question_id`
+- `category`
+- `question`
+- `vendor_answer`
+- `answer_type`
+- `confidence`
+- `retrieved_context`
+- `citations`
+- `graph_nodes_used`
+- `graph_edges_used`
+- `reasoning_trace_ref`
+- `latency_ms`
+
+Track A evidence uses PrimeKG identifiers through `source_ref`, not invented page
+or span values.
+
+For every supported claim:
+
+- `citations` contains resolvable PrimeKG node/edge `source_ref` values;
+- `retrieved_context` contains matching `source_ref`, `source_type`, and a
+  concise deterministic snippet derived from real node/edge fields;
+- cited evidence is represented in `graph_nodes_used`/`graph_edges_used`;
+- `reasoning_trace_ref` resolves to exactly one §8.3 trace;
+- question text and IDs match the supplied question set exactly.
+
+Confidence must have documented semantics. Prefer deterministic values tied to
+resolution/execution outcomes rather than model self-confidence. Do not present
+confidence as correctness probability unless calibrated.
+
+## 6. RFP §8.3 reasoning traces
+
+Produce exactly one trace per answer. Each trace contains:
+
+- `trace_id`
+- `question_id`
+- ordered `steps`
+- `final_answer`
+- `answer_supported_by`
+
+Trace the operation actually executed:
+
+1. firewall disposition;
+2. planner selection and validated operation (without hidden chain-of-thought);
+3. entity lookup with real node ID/type and resolution method;
+4. the authoritative database composition operation;
+5. hop/set/count/rank semantics with real supporting path IDs;
+6. source-context availability check;
+7. deterministic finalization.
+
+Do not submit private chain-of-thought or reconstructed fictional reasoning.
+Submit concise, auditable operation records, query semantics, inputs, outputs,
+and evidence.
+
+The RFP says clinical-context fields apply to biomedical PrimeKG, but PrimeKG
+does not encode patient-level negation, temporality, uncertainty, or
+experiencer. Do not fabricate values. Add a `context_check` step that explicitly
+records:
+
+```json
+{
+  "operation": "context_check",
+  "source": "PrimeKG",
+  "clinical_context_available": false,
+  "reason": "PrimeKG is a graph-native biomedical source and does not encode patient-level negation, temporality, uncertainty, or experiencer for this fact."
+}
+```
+
+Document this treatment in the methodology and clarification log. If Cotiviti
+has provided a different instruction, that response takes precedence and must
+be recorded.
+
+## 7. Honest validation
+
+Remove `_meets` and `pass N/M` as accuracy reporting. It may be retained under a
+name such as `structural_outcome_check`, but it must never be labeled accuracy.
+
+Implement:
+
+- `scripts/compare-planners.py`: regex-versus-agent plan and answer-set diff;
+- `scripts/validate-track-a.py`: schema, cross-reference, provenance, and
+  evidence validator;
+- versioned reviewed expected-answer fixtures under `tests/gold/`, if an
+  independently reviewed local oracle is available.
+
+Validation layers:
+
+1. **Structural:** JSON/JSONL validity, required fields, 100 unique questions,
+   100 unique traces, and exact cross-references.
+2. **Provenance:** every `source_ref` resolves locally and matches its claimed
+   node/edge/path.
+3. **Regression:** compare normalized agent answer sets and plans against the
+   retained regex baseline. Differences are investigated, not automatically
+   assigned to either implementation.
+4. **Independent review:** compare with independently reviewed SQL/spec fixtures
+   where available. Do not call same-author expectations independent gold.
+5. **Security:** all adversarial questions blocked before model/tool execution;
+   benign questions are not falsely blocked.
+6. **Robustness:** paraphrases, malformed model output, ambiguous entities,
+   timeouts, OCI failures, and unavailable attributes fail safely.
+
+Cotiviti owns the withheld correctness key. Do not self-report answer accuracy,
+multi-hop accuracy, or citation-quality scores as official results.
+
+## 8. Track A reporting and packaging
+
+The two machine-readable Track A artifacts are:
+
+- `vendor_<vendorid>_stage1_qa-results_v1.jsonl`
+- `vendor_<vendorid>_stage1_reasoning-traces_v1.json`
+
+Do not hard-code `vanguard` or `acme`; require the actual vendor ID through a
+validated command-line/config value. Use UTF-8, Unix line endings, and stable
+identifiers. Do not overwrite a prior submission version; increment the version
+suffix and declare the authoritative version.
+
+Track B has already been submitted. Do not regenerate it. Determine whether the
+existing Stage 1 reporting package already covers Track A. If it does not, add a
+Track A report or addendum containing:
+
+- query latency p50/p95/p99 over all 100 questions;
+- number of measured queries and concurrency;
+- hardware: machine/shape, CPU/vCPU, RAM, GPU if any;
+- Oracle image/version and relevant configuration;
+- planner provider/model/prompt version and inference configuration;
+- fully loaded cost per query, including model/API, compute, and storage basis;
+- methodology: architecture, model/version, relation vocabulary, entity
+  resolution, database composition, evidence generation, firewall, external
+  text/instruction isolation, failure behavior, and known limitations;
+- clarification log entries and Cotiviti responses actually relied upon.
+
+Do not invent a clarification response. Record “no response received; treatment
+documented as an assumption” where applicable.
+
+Generate a submission manifest/checksum report for internal delivery QA even
+though Track A does not require a graph manifest. Include artifact names, sizes,
+SHA-256 checksums, record counts, validator result, creation time, configuration
+fingerprint, and authoritative version. Do not include secrets.
+
+## 9. Implementation phases
+
+Each phase ends test-green and with documentation updated.
+
+### P0 — Contract and compliance freeze
+
+- Record Track A-only scope and that Track B is already submitted.
+- Map every RFP §8.2/§8.3 field to its producer.
+- Freeze the typed `Plan` schema and relation vocabulary.
+- Define evidence coverage, truncation, confidence, and clinical-context rules.
+- Add failing compliance tests before changing behavior.
+
+### P1 — Evidence-complete query results
+
+- Return per-answer supporting paths from each engine operation in one SQL query.
+- Populate matching citations and retrieved context.
+- Validate all path endpoints, edges, and predicates.
+- Cover one-hop, chain, set, count, rank, ratio, refusal, and block cases.
+
+### P2 — Provider-neutral agent planner
+
+- Implement the closed-schema planner interface and offline stub.
+- Add plan validation, bounds, retries, and fail-closed behavior.
+- Keep the regex planner selectable as the baseline.
+- Do not add per-question code.
+
+### P3 — OCI planner adapter
+
+- Adapt the OCI chat model only.
+- Add secret-safe configuration and error handling.
+- Smoke-test only when credentials/authorization are available.
+- Record exact provider/model/configuration used for the final run.
+
+### P4 — Deterministic finalization and real traces
+
+- Build answers solely from evidence-complete query results.
+- Build §8.2 context/citations and §8.3 traces from actual execution records.
+- Add the honest PrimeKG context-availability step.
+- Preserve exact SQL and safe bind metadata for audit.
+
+### P5 — Comparison and hardening
+
+- Run regex and agent planners over all 100 questions.
+- Investigate every plan or normalized answer-set divergence.
+- Run reviewed expected-answer checks where available.
+- Run security, paraphrase, ambiguity, timeout, malformed-output, and OCI-failure
+  suites.
+- Keep regex as fallback until the agent gates pass.
+
+### P6 — Final Track A run and package
+
+- Run against the local fully loaded question-relevant PrimeKG dataset.
+- Produce the two versioned machine-readable artifacts.
+- Produce/update the Track A metrics, operations, methodology, and clarification
+  reporting.
+- Run the final validator and checksum report.
+- Visually/sample-review representative simple, multi-hop, intersection,
+  aggregation, negation, insufficient-data, and adversarial records.
+
+## 10. Required tests and commands
+
+At minimum, before claiming completion:
+
+```sh
+python -m pytest -q
+python scripts/run-primekg-questions.py --planner regex --backend pgq
+python scripts/run-primekg-questions.py --planner agent --backend pgq
+python scripts/compare-planners.py <regex-run> <agent-run>
+python scripts/validate-track-a.py <submission-directory>
+```
+
+Also run focused database integration tests for every engine operation and a
+final 100-question run with artifact output. Report exact commands, exit codes,
+test counts, skips, runtime, planner divergences, validator findings, and final
+artifact paths. Do not claim success from unit tests alone.
+
+## 11. Final acceptance gates
+
+Do not declare the Track A submission complete until all are true:
+
+- [ ] Scope contains Track A only and does not modify the submitted Track B work.
+- [ ] All tests pass; any integration skips are understood and disclosed.
+- [ ] Exactly 100 supplied questions produce 100 unique §8.2 records.
+- [ ] Exactly 100 §8.3 traces exist and all references are one-to-one.
+- [ ] All required RFP fields are present with correct types.
+- [ ] Every asserted answer node has a complete supporting database path.
+- [ ] Every cited `source_ref`, graph node, and graph edge resolves locally.
+- [ ] Every cited edge matches its claimed endpoints and predicate.
+- [ ] `retrieved_context` is populated for supported/refusal evidence.
+- [ ] Multi-hop/set/count/rank/negation composition occurs in one SQL/PGQ query.
+- [ ] No model-generated ID, SQL, set arithmetic, or unsupported answer survives
+      validation.
+- [ ] Adversarial questions are blocked before OCI/database execution.
+- [ ] Unavailable facts are refused honestly and grounded where possible.
+- [ ] Trace steps reflect actual operations and contain no fabricated context or
+      private chain-of-thought.
+- [ ] No answer-accuracy claim is self-reported as official.
+- [ ] Query latency p50/p95/p99, configuration, and cost basis are documented.
+- [ ] Methodology and clarification treatment are documented.
+- [ ] Filenames, vendor ID, version, encoding, and line format comply with §7.1.
+- [ ] Final validator passes with zero errors.
+- [ ] Internal checksum/record-count report identifies the authoritative files.
+- [ ] No secret or OCI key/config value appears in source, logs, or artifacts.
+
+## 12. Deliverables
+
+Code and schemas:
+
+- typed agent planner and OCI adapter;
+- evidence-complete query results;
+- deterministic answer/trace finalization;
+- planner comparison and Track A validators;
+- comprehensive unit and local Oracle integration tests.
+
+Submission:
+
+- `vendor_<vendorid>_stage1_qa-results_v<n>.jsonl`
+- `vendor_<vendorid>_stage1_reasoning-traces_v<n>.json`
+- Track A metrics/operations/methodology/clarification addendum if not already
+  covered by the existing Stage 1 package;
+- internal validation/checksum report.
+
+The final handoff must state what was implemented, exact verification results,
+known limitations, all planner divergences and their disposition, the model and
+database configuration used, and the authoritative artifact paths. It must not
+claim Cotiviti correctness or citation scores that only the withheld key can
+establish.

@@ -11,10 +11,10 @@ services:
       - "${ORACLE_PORT:-1522}:1521"
     environment:
       # SYS/SYSTEM password.
-      ORACLE_PASSWORD: ${ORACLE_PWD:-Welcome1_local}
+      ORACLE_PASSWORD: ${ORACLE_PWD:?set ORACLE_PWD in .env}
       # Auto-provisions the non-privileged app user inside FREEPDB1.
       APP_USER: ${MC_DATABASE__USER:-MC}
-      APP_USER_PASSWORD: ${MC_DATABASE__PASSWORD:-Welcome1_local}
+      APP_USER_PASSWORD: ${MC_DATABASE__PASSWORD:?set MC_DATABASE__PASSWORD in .env}
     volumes:
       - vpk-oracle-data:/opt/oracle/oradata
     healthcheck:

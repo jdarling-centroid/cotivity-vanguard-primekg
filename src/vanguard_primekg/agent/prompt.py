@@ -7,7 +7,7 @@ from pathlib import Path
 
 from ..query_engine.specs import RELATION_BY_ID
 
-PROMPT_VERSION = "primekg-planner-1.5"
+PROMPT_VERSION = "primekg-planner-1.6"
 
 
 def system_prompt(schema: dict) -> str:
@@ -112,6 +112,12 @@ General examples (not evaluation questions):
 19. If a pathway is explicitly named in quotes, use that exact named pathway as
     a pathway slot. Do not replace it with a disease that merely appears later
     in the question.
+20. "Which diseases share at least N associated proteins with disease X and
+    have at least one drug indicated for them?" -> op count; disease X slot;
+    steps [disease_protein,disease_protein]; group_level 2 (candidate disease);
+    distinct_level 1 (shared protein); exclude_slot 0; cmp >=; n N;
+    require_edge indication; final_types [disease]. N is taken from the
+    question, never fixed by this example.
 """
     return (
         "You are a constrained PrimeKG query planner. Return exactly one JSON object "

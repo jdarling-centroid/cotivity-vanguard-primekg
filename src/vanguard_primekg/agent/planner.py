@@ -37,6 +37,7 @@ class PlannerAudit:
     attempts: int
     elapsed_ms: int
     error: str | None = None
+    deterministic_fallback_used: bool = False
 
 
 class RegexPlanner:
@@ -80,10 +81,11 @@ class AgentPlanner:
         repo_root: Path,
         provider: str,
         model_id: str,
-        prompt_version: str = "primekg-planner-1.5",
+        prompt_version: str = "primekg-planner-1.6",
         timeout: float = 60.0,
         max_tokens: int = 1800,
         retries: int = 2,
+        deterministic_fallback: bool = False,
     ) -> None:
         if not 1.0 <= timeout <= 300.0:
             raise ValueError("planner timeout must be between 1 and 300 seconds")
@@ -101,6 +103,7 @@ class AgentPlanner:
         self._timeout = timeout
         self._max_tokens = max_tokens
         self._retries = retries
+        self._deterministic_fallback = deterministic_fallback
 
     @property
     def usage(self) -> dict[str, int] | None:
@@ -138,6 +141,20 @@ class AgentPlanner:
                 )
             except Exception as exc:  # bounded retry; final result fails closed
                 error = f"{type(exc).__name__}: {exc}"
+        if self._deterministic_fallback:
+            fallback = classify(question)
+            if fallback.op != "insufficient":
+                _semantic_validate(fallback, question=question)
+                return fallback, PlannerAudit(
+                    provider=self._provider,
+                    model_id=self._model_id,
+                    prompt_version=self._prompt_version,
+                    raw_response=raw,
+                    attempts=self._retries + 1,
+                    elapsed_ms=int((time.monotonic() - started) * 1000),
+                    error=error,
+                    deterministic_fallback_used=True,
+                )
         return Plan(
             op="insufficient",
             answer_type="short_text",
@@ -273,6 +290,47 @@ def _semantic_validate(plan: Plan, *, question: str = "") -> None:
         if plan.exclude_slot is None:
             raise PlanValidationError(
                 "sharing with the starting disease requires exclude_slot"
+            )
+    shared_disease_threshold = re.search(
+        r"diseases?\s+share\s+at\s+least\s+"
+        r"(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\s+"
+        r"associated\s+proteins?\s+with\b",
+        q,
+    )
+    if shared_disease_threshold:
+        token = shared_disease_threshold.group(1)
+        threshold = (
+            int(token)
+            if token.isdigit()
+            else {
+                "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+                "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+            }[token]
+        )
+        if (
+            plan.op != "count"
+            or relation_ids[:2] != ["disease_protein", "disease_protein"]
+            or plan.group_level != 2
+            or plan.distinct_level != 1
+            or plan.exclude_slot != 0
+            or plan.cmp != ">="
+            or plan.n != threshold
+        ):
+            raise PlanValidationError(
+                "shared-disease protein thresholds require count with candidate "
+                "disease at group_level 2, shared protein at distinct_level 1, "
+                "the dynamic question threshold, and the anchor excluded"
+            )
+        requires_indicated_drug = bool(
+            re.search(r"(?:have|with)\s+at\s+least\s+one\s+drug\s+indicated", q)
+        )
+        if requires_indicated_drug and (
+            plan.require_edge is None
+            or S.relation_id(plan.require_edge) != "indication"
+        ):
+            raise PlanValidationError(
+                "shared-disease threshold requiring an indicated drug must use "
+                "require_edge indication"
             )
     if "share a target" in q or "shares a target" in q:
         if relation_ids.count("targets") < 2:

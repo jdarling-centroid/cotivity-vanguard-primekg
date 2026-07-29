@@ -191,6 +191,7 @@ def _planner(args: argparse.Namespace, repo_root: Path):
         timeout=args.planner_timeout,
         max_tokens=args.planner_max_tokens,
         retries=args.planner_retries,
+        deterministic_fallback=args.deterministic_planner_fallback,
     )
 
 
@@ -208,6 +209,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--planner-timeout", type=float, default=60.0)
     parser.add_argument("--planner-max-tokens", type=int, default=1800)
     parser.add_argument("--planner-retries", type=int, default=2)
+    parser.add_argument(
+        "--deterministic-planner-fallback",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help=(
+            "fall back to the reusable deterministic classifier only after the "
+            "agent planner exhausts validation retries"
+        ),
+    )
     parser.add_argument("--planner-fixtures", type=Path)
     parser.add_argument("--out", type=Path)
     parser.add_argument("--vendor-id", help="Required with --out; actual Cotiviti vendor identifier.")
@@ -385,6 +395,11 @@ def main(argv: list[str] | None = None) -> int:
                 "timeout_seconds": args.planner_timeout if args.planner == "agent" else None,
                 "max_tokens": args.planner_max_tokens if args.planner == "agent" else None,
                 "max_retries": args.planner_retries if args.planner == "agent" else None,
+                "deterministic_fallback": (
+                    args.deterministic_planner_fallback
+                    if args.planner == "agent"
+                    else False
+                ),
             },
             "token_usage": token_usage,
             "database": {

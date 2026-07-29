@@ -36,13 +36,14 @@ class SequenceModel:
         return value
 
 
-def _planner(model, retries=2):
+def _planner(model, retries=2, deterministic_fallback=False):
     return AgentPlanner(
         model,
         repo_root=REPO,
         provider="stub",
         model_id="fixture",
         retries=retries,
+        deterministic_fallback=deterministic_fallback,
     )
 
 
@@ -159,3 +160,91 @@ def test_agent_planner_rejects_unbounded_runtime_settings() -> None:
         AgentPlanner(model, repo_root=REPO, provider="stub", model_id="fixture", max_tokens=5000)
     with pytest.raises(ValueError, match="retries"):
         AgentPlanner(model, repo_root=REPO, provider="stub", model_id="fixture", retries=4)
+
+
+def test_shared_disease_threshold_rejects_wrong_dynamic_threshold_and_retries() -> None:
+    question = (
+        "Which diseases share AT LEAST 4 associated proteins with asthma "
+        "AND have at least one drug indicated for them?"
+    )
+    base = {
+        "schema_version": "planner-plan-1.0",
+        "op": "count",
+        "slots": [{"label": "asthma", "expected_types": ["disease"]}],
+        "steps": ["disease_protein", "disease_protein"],
+        "legs": [],
+        "final_types": ["disease"],
+        "group_level": 2,
+        "distinct_level": 1,
+        "exclude_slot": 0,
+        "cmp": ">=",
+        "n": 4,
+        "require_edge": "indication",
+        "noun": "diseases",
+        "answer_type": "entity_list",
+    }
+    wrong = dict(base, n=3)
+    model = SequenceModel([json.dumps(wrong), json.dumps(base)])
+
+    plan, audit = _planner(model).plan(question)
+
+    assert audit.attempts == 2
+    assert plan.n == 4
+    assert plan.group_level == 2
+    assert plan.distinct_level == 1
+    assert plan.exclude_slot == 0
+    assert plan.require_edge is not None
+
+
+def test_shared_disease_threshold_requires_indication_edge_generically() -> None:
+    question = (
+        "Which diseases share at least two associated proteins with asthma "
+        "and have at least one drug indicated for them?"
+    )
+    invalid = {
+        "schema_version": "planner-plan-1.0",
+        "op": "count",
+        "slots": [{"label": "asthma", "expected_types": ["disease"]}],
+        "steps": ["disease_protein", "disease_protein"],
+        "legs": [],
+        "final_types": ["disease"],
+        "group_level": 2,
+        "distinct_level": 1,
+        "exclude_slot": 0,
+        "cmp": ">=",
+        "n": 2,
+        "noun": "diseases",
+        "answer_type": "entity_list",
+    }
+
+    plan, audit = _planner(
+        SequenceModel([json.dumps(invalid)]), retries=0
+    ).plan(question)
+
+    assert plan.op == "insufficient"
+    assert audit.error and "require_edge indication" in audit.error
+
+
+def test_deterministic_fallback_is_opt_in_after_agent_validation_failure() -> None:
+    question = (
+        "Which drugs share at least one target with Atenolol but do NOT interact "
+        "with Atenolol and are NOT indicated for any disease Atenolol is indicated for?"
+    )
+    invalid = dict(VALID, op="neighbors")
+
+    disabled_plan, disabled_audit = _planner(
+        SequenceModel([json.dumps(invalid)]),
+        retries=0,
+        deterministic_fallback=False,
+    ).plan(question)
+    enabled_plan, enabled_audit = _planner(
+        SequenceModel([json.dumps(invalid)]),
+        retries=0,
+        deterministic_fallback=True,
+    ).plan(question)
+
+    assert disabled_plan.op == "insufficient"
+    assert not disabled_audit.deterministic_fallback_used
+    assert enabled_plan.op == "difference_many"
+    assert enabled_audit.deterministic_fallback_used
+    assert enabled_audit.error

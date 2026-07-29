@@ -58,7 +58,8 @@ def _render_step(index: int, step: dict[str, Any]) -> list[str]:
             f"Planner: `{step.get('planner')}` / `{step.get('provider')}` / "
             f"`{step.get('model_id')}`; prompt `{step.get('prompt_version')}`; "
             f"validated operation `{step.get('validated_operation')}`; "
-            f"attempts `{step.get('attempts')}`."
+            f"attempts `{step.get('attempts')}`; deterministic fallback "
+            f"`{step.get('deterministic_fallback_used', False)}`."
         )
     elif operation == "entity_lookup":
         lines += [

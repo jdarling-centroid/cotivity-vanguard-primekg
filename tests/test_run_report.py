@@ -72,11 +72,12 @@ def test_run_report_formats_manifest_metrics(tmp_path: Path) -> None:
     assert "- Mean latency (excluding firewall): 4.00 seconds" in result.stdout
     assert "- Minimum latency (excluding firewall): 2.00 seconds" in result.stdout
     assert "- Maximum latency (excluding firewall): 6.00 seconds" in result.stdout
-    assert "- Structural completion: 100/100" in result.stdout
-    assert "- Validation: 0 errors, 0 warnings" in result.stdout
+    assert "- Outcomes recorded: 3/100" in result.stdout
+    assert "- Structural checks: 100/100" in result.stdout
+    assert "- Validation: PASS — 0 errors, 0 warnings" in result.stdout
     assert "- Database: 62,030 nodes and 4,236,182 directed edges" in result.stdout
     assert "- Model: xai.grok-4.3, temperature 0" in result.stdout
-    assert "- Input tokens: 1000" in result.stdout
+    assert "- Input tokens: 1,000" in result.stdout
     assert "- Output tokens: 200" in result.stdout
     assert "- Model cost total: $0.00175000" in result.stdout
 
@@ -129,4 +130,4 @@ def test_run_report_reads_packaged_completion_counts(tmp_path: Path) -> None:
         text=True,
     )
 
-    assert "- Structural completion: 99/100" in result.stdout
+    assert "- Structural checks: 99/100" in result.stdout

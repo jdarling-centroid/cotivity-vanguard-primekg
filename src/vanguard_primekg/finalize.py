@@ -140,6 +140,9 @@ def _answered_steps(
             "prompt_version": audit.get("prompt_version", "classify.py"),
             "validated_operation": category,
             "attempts": audit.get("attempts", 1),
+            "deterministic_fallback_used": audit.get(
+                "deterministic_fallback_used", False
+            ),
         },
     ]
     for entity in resolved_entities or []:

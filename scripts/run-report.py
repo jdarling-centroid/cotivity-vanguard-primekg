@@ -131,9 +131,11 @@ def main() -> int:
     validation_path = directory / "validation-report.json"
     if validation_path.is_file():
         validation = _read_json(validation_path)
+        validation_errors = validation.get("error_count", 0)
+        validation_warnings = validation.get("warning_count", 0)
         validation_text = (
-            f"{validation.get('error_count', 0)} errors, "
-            f"{validation.get('warning_count', 0)} warnings"
+            f"{'PASS' if validation_errors == 0 and validation_warnings == 0 else 'FAIL'} "
+            f"— {validation_errors} errors, {validation_warnings} warnings"
         )
     else:
         validation_text = "not run"
@@ -172,26 +174,35 @@ def main() -> int:
         average_cost = None
         cost_basis = "token totals unavailable"
 
-    print("Run metrics:\n")
-    print(f"- Questions: {questions}")
-    print(f"- Concurrency: {manifest.get('concurrency', latency.get('concurrency', 1))}")
+    print("Vanguard run report")
+    print("===================\n")
+    print("Outcome")
+    print("-------")
+    print(f"- Outcomes recorded: {len(qa_records)}/{questions}")
     print(f"- Answered: {answered_count}")
-    print(f"- Unanswered: {unanswered_count}")
     print(f"- Firewall blocked: {firewall_count}")
+    print(f"- Unanswered: {unanswered_count}")
+    print(f"- Structural checks: {structural_passed}/{structural_total}")
+    print(f"- Validation: {validation_text}")
+    print("\nPerformance")
+    print("-----------")
+    print(f"- Concurrency: {manifest.get('concurrency', latency.get('concurrency', 1))}")
     print(f"- Mean latency (excluding firewall): {_seconds(latency.get('mean'))}")
     print(f"- Minimum latency (excluding firewall): {_seconds(latency.get('min'))}")
     print(f"- p50: {_seconds(latency.get('p50'))}")
     print(f"- p95: {_seconds(latency.get('p95'))}")
     print(f"- p99: {_seconds(latency.get('p99'))}")
     print(f"- Maximum latency (excluding firewall): {_seconds(latency.get('max'))}")
-    print(f"- Structural completion: {structural_passed}/{structural_total}")
-    print(f"- Validation: {validation_text}")
-    print(f"- Database: {database_text}")
+    wall_seconds = manifest.get("wall_seconds")
+    if isinstance(wall_seconds, (int, float)):
+        print(f"- Total wall time: {wall_seconds:.2f} seconds")
+    print("\nModel usage and cost")
+    print("--------------------")
     print(f"- Model: {model_text}")
     print(f"- Model requests: {requests if requests is not None else 'not recorded'}")
-    print(f"- Input tokens: {input_tokens if input_tokens is not None else 'not recorded'}")
-    print(f"- Output tokens: {output_tokens if output_tokens is not None else 'not recorded'}")
-    print(f"- Total tokens: {total_tokens if total_tokens is not None else 'not recorded'}")
+    print(f"- Input tokens: {input_tokens:,}" if isinstance(input_tokens, int) else "- Input tokens: not recorded")
+    print(f"- Output tokens: {output_tokens:,}" if isinstance(output_tokens, int) else "- Output tokens: not recorded")
+    print(f"- Total tokens: {total_tokens:,}" if isinstance(total_tokens, int) else "- Total tokens: not recorded")
     print(
         f"- Model cost total: ${total_cost:.8f}"
         if isinstance(total_cost, (int, float))
@@ -203,10 +214,11 @@ def main() -> int:
         else "- Model cost per question: not recorded"
     )
     print(f"- Cost basis: {cost_basis}")
-    wall_seconds = manifest.get("wall_seconds")
-    if isinstance(wall_seconds, (int, float)):
-        print(f"- Total wall time: {wall_seconds:.2f} seconds")
-    print("- Correctness: not self-scored; Cotiviti owns the withheld key")
+    print("\nEnvironment")
+    print("-----------")
+    print(f"- Database: {database_text}")
+    print("\nNote: completion and structural checks are not correctness scores; "
+          "Cotiviti owns the withheld answer key.")
     return 0
 
 

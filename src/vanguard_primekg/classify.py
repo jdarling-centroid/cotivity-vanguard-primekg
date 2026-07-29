@@ -294,13 +294,16 @@ def _classify_counts(q: str) -> Plan | None:
         return Plan("count", [(_clean(mt.group(2)), DRUG_TYPES)],
                     [S.TARGETS, S.TARGETS], group_level=2, distinct_level=1, cmp="=",
                     n=_num(mt.group(1)), final_type=DRUG_TYPES, exclude_slot=0, noun="drugs")
-    # "diseases share AT LEAST N associated proteins with X" (drops the extra
-    # "and have >=1 drug" existential; the shared-protein count is the core op)
+    # "diseases share AT LEAST N associated proteins with X", optionally
+    # requiring each returned disease to have an indicated drug.
     if mt := _m(r"diseases share at least (\w+) associated proteins with (.+?)(?: and| that|\?|$)", q):
+        require_edge = S.INDICATION if _m(
+            r"(?:have|with)\s+at least one drug indicated", q
+        ) else None
         return Plan("count", [(_clean(mt.group(2)), DISEASE_TYPES)],
                     [S.DIS_PROTEIN, S.DIS_PROTEIN], group_level=2, distinct_level=1,
                     cmp=">=", n=_num(mt.group(1)), final_type=DISEASE_TYPES,
-                    exclude_slot=0, noun="diseases")
+                    exclude_slot=0, require_edge=require_edge, noun="diseases")
     return None
 
 

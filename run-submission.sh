@@ -17,6 +17,7 @@ version=""
 vendor_id="centroid"
 source_run=""
 output_dir=""
+planner_fallback=true
 passthrough=()
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -32,6 +33,10 @@ Optional:
   --vendor-id ID    Vendor ID (default: centroid)
   --source DIR      Validated source run
   --out DIR         Output directory
+  --deterministic-planner-fallback
+                     Use deterministic classifier after agent retries (default)
+  --no-deterministic-planner-fallback
+                     Disable the fallback for comparison
   -h, --help        Show this help
 
 Example:
@@ -67,6 +72,14 @@ while [[ $# -gt 0 ]]; do
       output_dir=$2
       shift 2
       ;;
+    --deterministic-planner-fallback)
+      planner_fallback=true
+      shift
+      ;;
+    --no-deterministic-planner-fallback)
+      planner_fallback=false
+      shift
+      ;;
     -h|--help)
       usage
       echo
@@ -100,6 +113,11 @@ fi
 
 cd "$repo_root"
 
+fallback_argument="--deterministic-planner-fallback"
+if [[ "$planner_fallback" == false ]]; then
+  fallback_argument="--no-deterministic-planner-fallback"
+fi
+
 if [[ "$track" == "a" ]]; then
   if [[ ${#passthrough[@]} -gt 0 ]]; then
     output_dir=${output_dir:-.tmp/track-a-${version}}
@@ -113,6 +131,8 @@ if [[ "$track" == "a" ]]; then
       --planner agent \
       --agent-provider oci \
       --model-id xai.grok-4.3 \
+      --temperature 0 \
+      "$fallback_argument" \
       --backend pgq \
       --vendor-id "$vendor_id" \
       --version "$artifact_version" \
@@ -135,6 +155,8 @@ if [[ "$track" == "a" ]]; then
       --planner agent \
       --agent-provider oci \
       --model-id xai.grok-4.3 \
+      --temperature 0 \
+      "$fallback_argument" \
       --backend pgq \
       --vendor-id "$vendor_id" \
       --version "$version" \

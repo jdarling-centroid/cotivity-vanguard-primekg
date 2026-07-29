@@ -228,6 +228,9 @@ def main() -> int:
             "remote_database": bool(database.get("remote_allowed")),
             "model_database_composition": False,
             "question_specific_shortcuts": False,
+            "deterministic_planner_fallback": bool(
+                planner.get("deterministic_fallback")
+            ),
         },
         "token_usage": token_usage,
         "cost_per_query": cost_per_query,

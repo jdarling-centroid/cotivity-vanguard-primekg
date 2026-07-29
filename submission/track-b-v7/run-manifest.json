@@ -1,0 +1,45 @@
+{
+  "answered_count": 55,
+  "artifacts": {
+    "model-audit.json": "c51297555aad281e1a6d53a95b44d23c7e6ee4ef6b087c21d06365b3904b491e",
+    "vendor_centroid_stage1_qa-results_v7.jsonl": "471f8688361c2d10d4f0fd2234ea7adb1721895af5186edf00c03a344e901810",
+    "vendor_centroid_stage1_reasoning-traces_v7.json": "91fcda3a248a46dc2e57bed7fc01ab217ce0408983cb398a26ac54aa334bacb4"
+  },
+  "authoritative": true,
+  "concurrency": 1,
+  "cost": {
+    "basis": "OCI request configuration recorded; billing export not queried",
+    "status": "not_available_from_runtime_response"
+  },
+  "created_at": "2026-07-29T06:04:51.963590+00:00",
+  "database": {
+    "dsn_host": "localhost",
+    "local_only_guard": true,
+    "retrieval": "one baseline parameterized read-only Oracle query; one bounded expanded read-only query when baseline evidence is weak"
+  },
+  "firewall_block_count": 5,
+  "host": {
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.14.6"
+  },
+  "latency_ms": {
+    "max": 44654,
+    "mean": 19050.43,
+    "min": 0,
+    "p50": 14073.5,
+    "p95": 41704.9,
+    "p99": 43174.87
+  },
+  "model": {
+    "max_tokens": 1400,
+    "model_id": "xai.grok-4.3",
+    "provider": "oci_generative_ai",
+    "retries": 2,
+    "temperature_requested": 0.0,
+    "timeout_seconds": 300.0
+  },
+  "question_count": 60,
+  "stage": 1,
+  "track": "B",
+  "wall_seconds": 1143.164
+}

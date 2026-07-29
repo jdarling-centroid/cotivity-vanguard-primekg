@@ -1,8 +1,10 @@
-# PrimeKG Track A submission implementation
+# Vanguard Stage 1 Track A and Track B implementation
 
-This repository implements the **Stage 1 Track A PrimeKG** answer pipeline for
-the Cotiviti Vanguard evaluation. Track B has already been submitted and is out
-of scope here.
+This repository implements the Cotiviti Vanguard **Stage 1 Track A PrimeKG**
+answer pipeline and, on the `feat/trackb` branch, the **Track B MultiHopRAG**
+graph-construction and multi-hop answer pipeline. Track A artifacts remain
+isolated under `submission/track-a-*`; Track B uses separate tables, scripts,
+and `submission/track-b-*` directories.
 
 The central contract is:
 
@@ -49,8 +51,28 @@ python -m vanguard_primekg.load_primekg
 python scripts/smoke_test.py
 ```
 
+## Track B graph build and local load
+
+```sh
+python scripts/build-track-b-graph.py \
+  --vendor-id '<actual-vendor-id>' --version 1 \
+  --out .tmp/track-b-graph-v1
+
+python scripts/load-track-b-graph.py .tmp/track-b-graph-v1
+```
+
+Every Track B graph node and edge carries source-document provenance. Track B
+uses separate `mh_nodes`, `mh_edges`, and `mh_load_journal` tables and does not
+overwrite or reinterpret PrimeKG.
+
 Database access is local by default and guarded against remote DSNs. Do not set
 `VPK_ALLOW_REMOTE=1` for this submission.
+
+Experimental Track B behavior is opt-in. The cross-document deterministic
+shared-entity fallback is disabled by default and can be evaluated with
+`--deterministic-shared-entity-fallback`. Every run records the flag state in
+`run-manifest.json`, allowing the experiment to be rolled in or out without
+changing the known-good default.
 
 ## Run and compare planners
 
@@ -134,6 +156,9 @@ src/vanguard_primekg/finalize.py       deterministic answer/evidence/trace creat
 scripts/run-primekg-questions.py       versioned Track A run harness
 scripts/compare-planners.py            regex-versus-agent regression review
 scripts/validate-track-a.py            structural and database provenance validator
+scripts/build-track-b-graph.py         Track B graph artifact builder
+scripts/load-track-b-graph.py          idempotent local Oracle Track B loader
+src/vanguard_primekg/track_b/          Track B graph construction and retrieval
 docs/TRACK_A_COMPLIANCE.md             RFP field and acceptance-gate mapping
 docs/TRACK_A_REPORTING_ADDENDUM.md     metrics/methodology reporting template
 ```

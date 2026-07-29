@@ -1,14 +1,14 @@
-# Agent operating contract — PrimeKG Track A
+# Agent operating contract — Vanguard Stage 1
 
 Read `README.md`, `docs/ARCHITECTURE.md`, `docs/TRACK_A_COMPLIANCE.md`, and the
 RFP documents under `reference/rfp/` before changing behavior.
 
 ## Scope boundary
 
-This repository is for **Stage 1 Track A PrimeKG only**. Track B has already
-been submitted and must not be rebuilt or modified. Track A submits Q&A results
-and reasoning traces; it does not submit graph nodes, graph edges, or a graph
-manifest.
+Track A PrimeKG is complete and must remain isolated. On `feat/trackb`, Stage 1
+Track B MultiHopRAG is explicitly in scope. Track B submits a constructed graph,
+Q&A results, reasoning traces, and reporting artifacts; use separate `mh_*`
+tables and `submission/track-b-*` directories.
 
 ## Non-negotiable architecture
 
@@ -59,7 +59,7 @@ manifest.
 - Planner differences require review; neither implementation is presumed gold.
 - Same-author expected values are regression fixtures, not independent truth.
 
-## Definition of done
+## Track A definition of done
 
 Do not declare Track A complete until the final local database run produces
 exactly 100 QA records and 100 one-to-one traces, all integration tests run,

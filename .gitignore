@@ -12,3 +12,5 @@ __pycache__/
 submission/
 runs/
 data/datasets/primekg/kg.csv
+data/datasets/multihop/corpus.json
+data/datasets/multihop/MultiHopRAG.json

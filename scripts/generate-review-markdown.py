@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate human-readable Track A review Markdown from submission artifacts."""
+"""Generate human-readable Track A or Track B review Markdown."""
 
 from __future__ import annotations
 
@@ -30,11 +30,15 @@ def _load_jsonl(path: Path) -> list[dict[str, Any]]:
     return records
 
 
-def _question_number(question_id: str) -> int:
-    match = re.fullmatch(r"Q-KG-(\d{3})", question_id)
+def _question_parts(question_id: str) -> tuple[str, int]:
+    match = re.fullmatch(r"Q-(KG|MH)-(\d{3})", question_id)
     if not match:
-        raise SystemExit(f"invalid Track A question_id: {question_id!r}")
-    return int(match.group(1))
+        raise SystemExit(f"invalid Stage 1 question_id: {question_id!r}")
+    return match.group(1), int(match.group(2))
+
+
+def _question_number(question_id: str) -> int:
+    return _question_parts(question_id)[1]
 
 
 def _json_block(value: Any) -> list[str]:
@@ -102,10 +106,11 @@ def _render_step(index: int, step: dict[str, Any]) -> list[str]:
 
 def render_review(qa: dict[str, Any], trace: dict[str, Any]) -> str:
     question_id = str(qa["question_id"])
-    number = _question_number(question_id)
+    key, number = _question_parts(question_id)
+    title = "PrimeKG" if key == "KG" else "MultiHop RAG"
     supported_by = trace.get("answer_supported_by", [])
     lines = [
-        f"# PrimeKG - Q{number}",
+        f"# {title} - Q{number}",
         "",
         f"**Question ID:** `{question_id}`",
         "",
@@ -160,7 +165,7 @@ def main() -> int:
     parser.add_argument(
         "submission_dir",
         type=Path,
-        help="directory containing one Track A QA JSONL and one reasoning-trace JSON",
+        help="directory containing one QA JSONL and one reasoning-trace JSON",
     )
     parser.add_argument(
         "--out",
@@ -200,8 +205,9 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=True)
     written = 0
     for question_id in sorted(qa_by_id, key=_question_number):
-        number = _question_number(question_id)
-        destination = output / f"PrimeKG - Q{number}.md"
+        key, number = _question_parts(question_id)
+        title = "PrimeKG" if key == "KG" else "MultiHop RAG"
+        destination = output / f"{title} - Q{number}.md"
         if destination.exists() and not args.overwrite:
             raise SystemExit(
                 f"refusing to overwrite {destination}; pass --overwrite to replace reviews"

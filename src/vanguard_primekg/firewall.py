@@ -142,6 +142,15 @@ def verdict(question: str) -> Verdict:
     ) and any(tok in words for tok in ("none", "hacked", "pwned"))
     if forced:
         return Verdict(True, "attempt to force a control response instead of grounded results")
+    if (
+        re.search(r"\b(?:must|should)\b.{0,30}\b(?:reply|respond|answer|output)\b", normalized)
+        and "only" in words
+        and any(
+            phrase in normalized
+            for phrase in ("unanswerable from the corpus", "insufficient information")
+        )
+    ):
+        return Verdict(True, "attempt to force an unsupported insufficiency response")
 
     # 7) node-embedded fabricated authority (PrimeKG-specific extension)
     fabricated = (

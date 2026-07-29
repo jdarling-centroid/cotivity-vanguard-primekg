@@ -1,4 +1,8 @@
-# Track A architecture
+# Stage 1 architecture
+
+Track A and Track B share the local-only Oracle, security, stable-ID,
+provenance, and no-overwrite requirements, but use isolated graph schemas and
+submission directories. Sections 1-10 below describe Track A.
 
 ## 1. End-to-end flow
 
@@ -174,3 +178,19 @@ The query layer emits a qualifying support path per answer while aggregate,
 rank, ratio, and negation qualification is established by the authoritative SQL
 itself. The final review should sample those operations and verify that the SQL
 semantics and witness paths jointly support the submitted claim.
+
+## 11. Track B extension
+
+Track B builds a graph from the public MultiHopRAG corpus. The deterministic
+builder emits the RFP §8.1 nodes, edges, and manifest triplet. Node types include
+Document, TextBlock, Source, Person, Category, and cross-document Entity;
+relations include document metadata, containment, and entity mentions.
+
+All graph elements carry source `doc_id` provenance. Text blocks and entity
+mentions also carry character spans. Clinical-context fields are omitted
+because MultiHopRAG is non-clinical.
+
+The graph loads idempotently into separate `mh_*` Oracle tables. Retrieval uses
+one parameterized, read-only Oracle query to rank TextBlock nodes and returns
+the Document-to-TextBlock graph edge with each passage. Track B answers must
+cite only returned passages and record ordered graph/evidence steps.

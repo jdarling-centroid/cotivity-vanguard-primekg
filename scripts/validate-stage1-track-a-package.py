@@ -89,6 +89,31 @@ def main() -> int:
         ):
             errors.append("Track A validator did not pass cleanly with database provenance")
 
+    run_manifest_path = directory / "run-manifest.json"
+    if not run_manifest_path.is_file():
+        errors.append("missing measured run manifest")
+    else:
+        run_manifest = _json(run_manifest_path)
+        usage = run_manifest.get("token_usage")
+        cost = run_manifest.get("cost_per_query")
+        if (
+            not isinstance(usage, dict)
+            or not all(
+                isinstance(usage.get(key), int) and usage[key] > 0
+                for key in ("input_tokens", "output_tokens", "total_tokens", "requests")
+            )
+        ):
+            errors.append("missing measured OCI input/output token counts")
+        if (
+            not isinstance(cost, dict)
+            or cost.get("status") != "model_cost_measured"
+            or not isinstance(cost.get("model_cost_usd_per_query"), (int, float))
+            or not isinstance(cost.get("fully_loaded_usd_per_query"), (int, float))
+            or not isinstance(cost.get("local_cost_basis"), str)
+            or not isinstance(cost.get("pricing_basis"), dict)
+        ):
+            errors.append("missing measured model cost per query and pricing basis")
+
     if "qa-results" in paths:
         qa_lines = [
             line for line in paths["qa-results"].read_text(encoding="utf-8").splitlines()

@@ -102,6 +102,11 @@ class AgentPlanner:
         self._max_tokens = max_tokens
         self._retries = retries
 
+    @property
+    def usage(self) -> dict[str, int] | None:
+        value = getattr(self._model, "usage", None)
+        return value if isinstance(value, dict) else None
+
     def plan(self, question: str) -> tuple[Plan, PlannerAudit]:
         started = time.monotonic()
         raw: str | None = None

@@ -1,0 +1,15 @@
+{
+  "authoritative_version": 9,
+  "created_at": "2026-07-29T15:12:24.298211+00:00",
+  "database_provenance_checked": true,
+  "error_count": 0,
+  "errors": [],
+  "qa_records": 100,
+  "reasoning_traces": 100,
+  "result": "pass",
+  "scope": "Stage 1 Track A PrimeKG only",
+  "validator": "validate-track-a.py",
+  "vendor_id": "centroid",
+  "warning_count": 0,
+  "warnings": []
+}

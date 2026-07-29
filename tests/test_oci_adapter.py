@@ -43,7 +43,8 @@ class Client:
     def chat(self, details):
         self.details = details
         response = SimpleNamespace(
-            choices=[SimpleNamespace(message=SimpleNamespace(content=[TextContent('{"ok":true}')]))]
+            choices=[SimpleNamespace(message=SimpleNamespace(content=[TextContent('{"ok":true}')]))],
+            usage=SimpleNamespace(prompt_tokens=11, completion_tokens=7),
         )
         return SimpleNamespace(data=SimpleNamespace(chat_response=response))
 
@@ -85,6 +86,12 @@ def test_oci_adapter_sends_explicit_temperature_and_bounds_tokens(monkeypatch) -
     assert request.kwargs["temperature"] == 0.0
     assert request.kwargs["max_tokens"] == 64
     assert details.kwargs["serving_mode"].model_id == "model"
+    assert model.usage == {
+        "input_tokens": 11,
+        "output_tokens": 7,
+        "total_tokens": 18,
+        "requests": 1,
+    }
 
 
 def test_oci_adapter_rejects_invalid_bounds_before_sdk_use() -> None:

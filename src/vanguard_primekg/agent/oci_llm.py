@@ -68,6 +68,11 @@ class OCIPlannerModel:
             "OCI_COMPARTMENT_ID", sdk_config.get("tenancy")
         )
         self._config = config
+        self._usage = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "requests": 0}
+
+    @property
+    def usage(self) -> dict[str, int]:
+        return dict(self._usage)
 
     def complete(self, *, system: str, user: str, max_tokens: int, timeout: float) -> str:
         del timeout  # client timeout is fixed at construction to avoid mutable global state
@@ -91,6 +96,17 @@ class OCIPlannerModel:
                 chat_request=models.GenericChatRequest(**kwargs),
             )
         ).data.chat_response
+        usage = getattr(response, "usage", None)
+        if usage is None:
+            raise RuntimeError("OCI response omitted required token usage")
+        prompt_tokens = getattr(usage, "prompt_tokens", None)
+        completion_tokens = getattr(usage, "completion_tokens", None)
+        if not isinstance(prompt_tokens, int) or not isinstance(completion_tokens, int):
+            raise RuntimeError("OCI response returned invalid token usage")
+        self._usage["input_tokens"] += prompt_tokens
+        self._usage["output_tokens"] += completion_tokens
+        self._usage["total_tokens"] += prompt_tokens + completion_tokens
+        self._usage["requests"] += 1
         message = response.choices[0].message
         return "".join(
             item.text for item in (message.content or []) if getattr(item, "text", None)

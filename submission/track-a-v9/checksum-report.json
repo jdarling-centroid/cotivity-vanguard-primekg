@@ -1,0 +1,24 @@
+{
+  "artifacts": [
+    {
+      "name": "vendor_centroid_stage1_qa-results_v9.jsonl",
+      "sha256": "d6898dfc13d7f691ac3e3c21f7189bbd0d3d1d555491b90204e074dcadf0f5ca",
+      "size": 1972778
+    },
+    {
+      "name": "vendor_centroid_stage1_reasoning-traces_v9.json",
+      "sha256": "9e4ec63fff47244a9876f8d515d34258e4f06650d7e8c34ec2a93d33f319ac88",
+      "size": 2120379
+    }
+  ],
+  "authoritative_version": 9,
+  "configuration_fingerprint": "81c293af2a288688d47c0f0dc6495d1a10e78d71bb56212bd67296023d9808f8",
+  "created_at": "2026-07-29T15:12:24.298211+00:00",
+  "record_counts": {
+    "qa": 100,
+    "traces": 100
+  },
+  "scope": "internal delivery QA; not a Track A graph manifest",
+  "validator_result": "pass",
+  "vendor_id": "centroid"
+}

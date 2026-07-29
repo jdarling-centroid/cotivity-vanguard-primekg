@@ -101,7 +101,6 @@ fi
 cd "$repo_root"
 
 if [[ "$track" == "a" ]]; then
-  source_run=${source_run:-submission/track-a-v1}
   if [[ ${#passthrough[@]} -gt 0 ]]; then
     output_dir=${output_dir:-.tmp/track-a-${version}}
     artifact_version=1
@@ -125,6 +124,24 @@ if [[ "$track" == "a" ]]; then
     exit 64
   fi
   output_dir=${output_dir:-submission/track-a-v${version}}
+  if [[ -z "$source_run" ]]; then
+    source_run=".tmp/track-a-v${version}-measured-source"
+    if [[ -e "$source_run" ]]; then
+      echo "Refusing to overwrite existing measured source run: $source_run" >&2
+      exit 73
+    fi
+    export PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}"
+    "$repo_root/.venv/bin/python3" scripts/run-primekg-questions.py \
+      --planner agent \
+      --agent-provider oci \
+      --model-id xai.grok-4.3 \
+      --backend pgq \
+      --vendor-id "$vendor_id" \
+      --version "$version" \
+      --out "$source_run"
+    "$repo_root/.venv/bin/python3" scripts/validate-track-a.py \
+      "$source_run" --verify-db
+  fi
   exec scripts/prepare-track-a-submission.sh \
     "$source_run" "$output_dir" "$vendor_id" "$version"
 fi

@@ -118,6 +118,33 @@ def main() -> int:
     ]
     traces = _json(trace_path)
     source_manifest = _json(source / "run-manifest.json")
+    token_usage = source_manifest.get("token_usage")
+    cost_per_query = source_manifest.get("cost_per_query")
+    if (
+        not isinstance(token_usage, dict)
+        or not all(
+            isinstance(token_usage.get(key), int) and token_usage[key] > 0
+            for key in ("input_tokens", "output_tokens", "total_tokens", "requests")
+        )
+        or not isinstance(cost_per_query, dict)
+        or cost_per_query.get("status") != "model_cost_measured"
+        or not isinstance(cost_per_query.get("model_cost_usd_per_query"), (int, float))
+    ):
+        raise SystemExit(
+            "source run lacks measured OCI token usage and model cost per query"
+        )
+    cost_per_query = dict(cost_per_query)
+    cost_per_query.update({
+        "local_compute_usd_total": 0.0,
+        "local_storage_usd_total": 0.0,
+        "fully_loaded_usd_total": cost_per_query["model_cost_usd_total"],
+        "fully_loaded_usd_per_query": cost_per_query["model_cost_usd_per_query"],
+        "local_cost_basis": (
+            "Incremental billed-cost basis: the measured run used an existing "
+            "owned workstation and local Oracle storage with no incremental "
+            "cloud compute or storage charge."
+        ),
+    })
     latencies = [
         int(record["latency_ms"])
         for record in qa_records
@@ -127,6 +154,11 @@ def main() -> int:
     database = source_manifest["database"]
     hardware = _hardware_details(source_manifest["hardware"])
     planner = source_manifest["planner"]
+    temperature_display = (
+        f"{planner['temperature_sent']:g}"
+        if planner.get("temperature_sent") is not None
+        else "not sent"
+    )
     structural = source_manifest["structural_outcome_check"]
     created_at = datetime.now(timezone.utc).isoformat()
 
@@ -182,13 +214,8 @@ def main() -> int:
             "model_database_composition": False,
             "question_specific_shortcuts": False,
         },
-        "cost": {
-            "status": "not_available",
-            "basis": (
-                "OCI runtime response did not include billable token usage and no "
-                "billing export was queried; no unsupported estimate is reported."
-            ),
-        },
+        "token_usage": token_usage,
+        "cost_per_query": cost_per_query,
         "artifacts": {},
     }
     run_manifest_path = target / "run-manifest.json"
@@ -210,7 +237,9 @@ correctness, multi-hop accuracy, and citation quality are not self-scored.
 | Reported NFRs | Query latency p95 | {_percentile(latencies, .95):.2f} ms | Same run/configuration |
 | Reported NFRs | Query latency p99 | {_percentile(latencies, .99):.2f} ms | Same run/configuration |
 | Reported NFRs | Mean query latency | {statistics.fmean(latencies):.2f} ms | Same run/configuration |
-| Reported NFRs | Cost per query | Not available | OCI response lacked billing usage; no billing export was queried |
+| Reported NFRs | Input tokens | {token_usage["input_tokens"]:,} | Measured OCI response usage over {token_usage["requests"]} requests |
+| Reported NFRs | Output tokens | {token_usage["output_tokens"]:,} | Measured OCI response usage |
+| Reported NFRs | Fully loaded cost per query | ${cost_per_query["fully_loaded_usd_per_query"]:.8f} | Measured model usage plus $0 incremental local compute/storage; see operations report |
 
 Graph-construction and ingestion metrics do not apply to Track A because
 PrimeKG is provided by Cotiviti. Structural completion was
@@ -233,7 +262,7 @@ PrimeKG is provided by Cotiviti. Structural completion was
 - Structural completion: {structural["passed"]}/{structural["total"]}
 - Database validation: 0 errors, 0 warnings
 - Database: {database["node_count"]:,} nodes and {database["directed_edge_count"]:,} directed edges
-- Model: {planner["model_id"]}, requested temperature {planner["temperature_sent"]:g}
+- Model: {planner["model_id"]}, requested temperature {temperature_display}
 
 Latency is wall-clock time from question input through firewall, planning,
 entity resolution, one read-only database composition query, and deterministic
@@ -259,10 +288,20 @@ finalization. No warm-up exclusions were applied.
 
 ## Cost and scalability
 
-Fully loaded cost per query is not reported because the OCI runtime response did
-not provide billable usage and no billing export was queried. The run used local
-Oracle storage/compute and OCI Generative AI only for closed-schema planning.
-No unsupported cost estimate is presented.
+- OCI requests measured: {token_usage["requests"]}
+- Input tokens: {token_usage["input_tokens"]:,}
+- Output tokens: {token_usage["output_tokens"]:,}
+- Total tokens: {token_usage["total_tokens"]:,}
+- Measured model cost total: ${cost_per_query["model_cost_usd_total"]:.6f}
+- Measured model cost per query: ${cost_per_query["model_cost_usd_per_query"]:.8f}
+- Incremental local compute cost: $0.000000
+- Incremental local storage cost: $0.000000
+- Estimated fully loaded cost per query: ${cost_per_query["fully_loaded_usd_per_query"]:.8f}
+- Pricing basis: {cost_per_query["pricing_basis"]["source"]},
+  {cost_per_query["pricing_basis"]["price_list_date"]}
+
+The model calculation uses the measured OCI token counts and the documented
+input/output token rates. {cost_per_query["local_cost_basis"]}
 
 PrimeKG steady state for this run was {database["node_count"]:,} nodes and
 {database["directed_edge_count"]:,} directed edges. The database load is
@@ -308,7 +347,7 @@ parameterized query. Unsupported facts fail closed.
 
 - Planner provider: {planner["provider"]}
 - Planner model: {planner["model_id"]}
-- Requested temperature: {planner["temperature_sent"]:g}
+- Requested temperature: {temperature_display}
 - Prompt version: {planner["prompt_version"]}
 - Planner schema: planner-plan-1.0
 - Oracle client-reported database version: {database["oracle_client_reported_version"]}

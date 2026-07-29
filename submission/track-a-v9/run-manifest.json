@@ -1,0 +1,108 @@
+{
+  "artifacts": {
+    "vendor_centroid_stage1_clarification-log_v9.md": "1cae4eb5ee70bed23a51a2f1d70765e64cc88aa3ff594fb9c1aefc1fc8de088f",
+    "vendor_centroid_stage1_methodology-summary_v9.md": "7a31e69efbe2d88d7e741c7198e52e295c8eb86e0608c4c78e026a0a99231ab3",
+    "vendor_centroid_stage1_metrics-self-report_v9.md": "07b5ad7bb57701d5ac0a99dcbb1d27d8774034c20b4de4fb4f852ae192dbcfef",
+    "vendor_centroid_stage1_operations-report_v9.md": "9d72188b7b14b6bf8e021b76ec3648ff6e184c54220b62ace951e3ec78a46931",
+    "vendor_centroid_stage1_qa-results_v9.jsonl": "d6898dfc13d7f691ac3e3c21f7189bbd0d3d1d555491b90204e074dcadf0f5ca",
+    "vendor_centroid_stage1_reasoning-traces_v9.json": "9e4ec63fff47244a9876f8d515d34258e4f06650d7e8c34ec2a93d33f319ac88",
+    "vendor_centroid_stage1_submission-manifest_v9.json": "a0397b0a236577e2672bec85f357f8b792a59ff0183f179646c704f1c622ec5d"
+  },
+  "authoritative": true,
+  "authoritative_version": 9,
+  "completion": {
+    "explicitly_not_accuracy": true,
+    "qa_records": 100,
+    "reasoning_traces": 100,
+    "structural_passed": 100,
+    "structural_total": 100
+  },
+  "concurrency": 1,
+  "cost_per_query": {
+    "fully_loaded_usd_per_query": 0.00348796,
+    "fully_loaded_usd_total": 0.348796,
+    "local_compute_usd_total": 0.0,
+    "local_cost_basis": "Incremental billed-cost basis: the measured run used an existing owned workstation and local Oracle storage with no incremental cloud compute or storage charge.",
+    "local_storage_usd_total": 0.0,
+    "model_cost_usd_per_query": 0.00348796,
+    "model_cost_usd_total": 0.348796,
+    "pricing_basis": {
+      "input_usd_per_million_tokens": 1.25,
+      "output_usd_per_million_tokens": 2.5,
+      "price_list_date": "2026-05-01",
+      "source": "Oracle PaaS and IaaS Global Price List"
+    },
+    "scope_note": "Model API cost; local hardware/storage cost is reported separately.",
+    "status": "model_cost_measured"
+  },
+  "created_at": "2026-07-29T15:12:24.012481+00:00",
+  "database": {
+    "backend": "pgq",
+    "call_timeout_ms": 20000,
+    "directed_edge_count": 4236182,
+    "dsn_host": "localhost",
+    "load_journal": {
+      "directed_edges_loaded": 4236182,
+      "kg_checksum": "957238769f95a761b1aaa082d2ae14b6",
+      "nodes_loaded": 62030,
+      "relations": "bidirectional-v2:contraindication,disease_disease,disease_phenotype_positive,disease_protein,drug_drug,drug_effect,drug_protein,indication,off-label use,pathway_protein,phenotype_phenotype,phenotype_protein,protein_protein",
+      "status": "completed",
+      "updated_at": "2026-07-28T21:17:38.446373"
+    },
+    "node_count": 62030,
+    "oracle_client_reported_version": "23.26.2.0.0",
+    "remote_allowed": false
+  },
+  "dataset": "PrimeKG",
+  "feature_flags": {
+    "model_database_composition": false,
+    "question_specific_shortcuts": false,
+    "remote_database": false
+  },
+  "hardware": {
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "gpu": "not detected/reported by harness",
+    "machine": "arm64",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "ram_gib": 36.0
+  },
+  "latency_ms": {
+    "excludes_firewall_and_zero_ms": true,
+    "max": 80914,
+    "mean": 4571.56,
+    "min": 1477,
+    "p50": 2718.0,
+    "p95": 9823.4,
+    "p99": 22969.58,
+    "queries": 95
+  },
+  "model": {
+    "max_tokens": 1800,
+    "model_id": "xai.grok-4.3",
+    "prompt_version": "primekg-planner-1.5",
+    "provider": "oci",
+    "retries": 2,
+    "role": "closed-schema semantic planner only",
+    "temperature_requested": null,
+    "timeout_seconds": 60.0
+  },
+  "question_count": 100,
+  "schema_version": "vanguard-stage1-run-metrics-1.0",
+  "source_run": {
+    "authoritative_version": 8,
+    "created_at": "2026-07-29T15:10:46.295445+00:00",
+    "directory": "track-a-v8-measured-source",
+    "qa_sha256": "d6898dfc13d7f691ac3e3c21f7189bbd0d3d1d555491b90204e074dcadf0f5ca",
+    "reasoning_traces_sha256": "9e4ec63fff47244a9876f8d515d34258e4f06650d7e8c34ec2a93d33f319ac88"
+  },
+  "stage": 1,
+  "token_usage": {
+    "input_tokens": 252137,
+    "output_tokens": 13450,
+    "requests": 95,
+    "total_tokens": 265587
+  },
+  "track": "A",
+  "vendor_id": "centroid"
+}

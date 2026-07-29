@@ -29,6 +29,7 @@ from vanguard_primekg.agent.prompt import PROMPT_VERSION
 from vanguard_primekg.backends import PgqBackend, SelectAiBackend, SelectAiUnavailable
 from vanguard_primekg.config import load_settings
 from vanguard_primekg.db import connect
+from vanguard_primekg.question_selection import parse_numbers
 from vanguard_primekg.solver import solve
 from vanguard_primekg.submission import validate_vendor_id
 
@@ -91,17 +92,6 @@ def _review_md(number: int, text: str, meta: dict, result: SessionResult, status
         "",
     ]
     return "\n".join(lines)
-
-
-def _parse_numbers(chunks: list[str]) -> set[int]:
-    numbers: set[int] = set()
-    for chunk in chunks:
-        for token in re.split(r"[,\s]+", chunk.strip()):
-            if token.isdigit():
-                numbers.add(int(token))
-            elif token:
-                raise SystemExit(f"invalid question number: {token!r}")
-    return numbers
 
 
 def _percentile(values: list[int], percentile: float) -> float:
@@ -245,7 +235,7 @@ def main(argv: list[str] | None = None) -> int:
 
     data = yaml.safe_load(questions_path.read_text(encoding="utf-8"))
     questions = data["sections"][0]["questions"]
-    wanted = _parse_numbers(args.numbers)
+    wanted = parse_numbers(args.numbers)
     if wanted:
         questions = [question for question in questions if question["number"] in wanted]
         if not questions:
@@ -325,6 +315,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     if args.out is not None:
         artifact_paths = [fin.results_path, fin.traces_path]
+        token_usage = getattr(planner, "usage", None)
+        input_rate = 1.25
+        output_rate = 2.50
+        model_cost = None
+        if token_usage:
+            model_cost = round(
+                token_usage["input_tokens"] / 1_000_000 * input_rate
+                + token_usage["output_tokens"] / 1_000_000 * output_rate,
+                6,
+            )
         manifest = {
             "run_label": os.environ.get("VPK_RUN_LABEL"),
             "scope": "Stage 1 Track A PrimeKG only",
@@ -372,6 +372,7 @@ def main(argv: list[str] | None = None) -> int:
                 "max_tokens": args.planner_max_tokens if args.planner == "agent" else None,
                 "max_retries": args.planner_retries if args.planner == "agent" else None,
             },
+            "token_usage": token_usage,
             "database": {
                 "backend": args.backend,
                 "dsn_host": settings.database.host,
@@ -380,8 +381,19 @@ def main(argv: list[str] | None = None) -> int:
                 **database_snapshot,
             },
             "cost_per_query": {
-                "status": "not_computed_by_harness",
-                "reason": "requires final provider usage, compute/storage rates, and measured run duration",
+                "status": "model_cost_measured" if model_cost is not None else "not_applicable",
+                "model_cost_usd_total": model_cost,
+                "model_cost_usd_per_query": (
+                    round(model_cost / len(questions), 8)
+                    if model_cost is not None and questions else None
+                ),
+                "pricing_basis": {
+                    "input_usd_per_million_tokens": input_rate,
+                    "output_usd_per_million_tokens": output_rate,
+                    "price_list_date": "2026-05-01",
+                    "source": "Oracle PaaS and IaaS Global Price List",
+                },
+                "scope_note": "Model API cost; local hardware/storage cost is reported separately.",
             },
             "artifacts": [
                 {

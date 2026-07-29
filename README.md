@@ -119,6 +119,8 @@ Test and subset runs may use descriptive labels and pass runner flags through:
 ```sh
 ./run-submission.sh --track a --version 8-q83-a --question 83
 ./run-submission.sh --track a --version 8-q83-b --questions 83 --temperature 0.1
+./run-submission.sh --track a --version 8-mixed \
+  --question=1 --questions 2,3 --question 4 --questions "5, 10"
 ```
 
 These write separate ignored test-run directories. Only a full run without

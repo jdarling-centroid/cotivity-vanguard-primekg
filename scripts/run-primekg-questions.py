@@ -13,6 +13,7 @@ import os
 import platform
 import re
 import statistics
+import subprocess
 import sys
 from contextlib import nullcontext
 from datetime import datetime, timezone
@@ -266,7 +267,18 @@ def main(argv: list[str] | None = None) -> int:
             number = question["number"]
             text = question["question"]
             meta = question["metadata"]
+            usage_before = dict(getattr(planner, "usage", None) or {})
             result = solve(number, text, backend, planner=planner, verbose=args.verbose)
+            usage_after = dict(getattr(planner, "usage", None) or {})
+            question_usage = {
+                key: int(usage_after.get(key, 0)) - int(usage_before.get(key, 0))
+                for key in ("input_tokens", "output_tokens", "total_tokens", "requests")
+            }
+            question_model_cost = round(
+                question_usage["input_tokens"] / 1_000_000 * 1.25
+                + question_usage["output_tokens"] / 1_000_000 * 2.50,
+                8,
+            )
             results.append(result)
             if fin is not None:
                 fin.write(result)
@@ -303,6 +315,8 @@ def main(argv: list[str] | None = None) -> int:
                     "support_edge_count": len(result.graph_edges_used),
                     "retrieved_context_count": len(result.retrieved_context),
                     "latency_ms": result.latency_ms,
+                    "token_usage": question_usage,
+                    "model_cost_usd": question_model_cost,
                     "truncated": result.truncated,
                 }
             )
@@ -407,6 +421,16 @@ def main(argv: list[str] | None = None) -> int:
         }
         (args.out / "run-manifest.json").write_text(
             json.dumps(manifest, indent=2), encoding="utf-8", newline="\n"
+        )
+        subprocess.run(
+            [
+                sys.executable,
+                str(settings.repo_root / "scripts" / "generate-review-markdown.py"),
+                str(args.out),
+                "--overwrite",
+            ],
+            cwd=settings.repo_root,
+            check=True,
         )
         print(f"artifacts: {args.out}", file=sys.stderr)
     return 0

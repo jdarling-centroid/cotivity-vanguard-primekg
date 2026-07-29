@@ -66,43 +66,25 @@ def _is_unanswered(record: dict[str, Any]) -> bool:
     )
 
 
-def _database_counts(manifest: dict[str, Any], *, query_db: bool) -> tuple[Any, Any]:
+def _database_counts(manifest: dict[str, Any]) -> tuple[Any, Any]:
     database = manifest.get("database") or {}
-    nodes = database.get("node_count")
-    edges = database.get("directed_edge_count")
-    if nodes is not None and edges is not None:
-        return nodes, edges
-    if not query_db:
-        return None, None
-
-    from vanguard_primekg.config import load_settings
-    from vanguard_primekg.db import connect
-
-    track = str(manifest.get("track") or "A").upper()
-    node_table, edge_table = (
-        ("mh_nodes", "mh_edges") if track == "B" else ("pk_nodes", "pk_edges")
-    )
-    try:
-        with connect(load_settings()) as connection:
-            with connection.cursor() as cursor:
-                cursor.execute(f"SELECT COUNT(*) FROM {node_table}")
-                nodes = int(cursor.fetchone()[0])
-                cursor.execute(f"SELECT COUNT(*) FROM {edge_table}")
-                edges = int(cursor.fetchone()[0])
-    except Exception:
-        return None, None
-    return nodes, edges
+    return database.get("node_count"), database.get("directed_edge_count")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_directory", type=Path)
-    parser.add_argument(
-        "--no-db",
-        action="store_true",
-        help="do not query local Oracle when counts are absent from the manifest",
-    )
+    parser.add_argument("--input-cost-per-million", type=float, default=1.25)
+    parser.add_argument("--output-cost-per-million", type=float, default=2.50)
     args = parser.parse_args()
+    if any(
+        value < 0
+        for value in (
+            args.input_cost_per_million,
+            args.output_cost_per_million,
+        )
+    ):
+        parser.error("token costs must be non-negative")
 
     directory = args.run_directory.resolve()
     manifest_path = directory / "run-manifest.json"
@@ -138,8 +120,13 @@ def main() -> int:
         }
 
     structural = manifest.get("structural_outcome_check") or {}
-    structural_passed = structural.get("passed", completed)
-    structural_total = structural.get("total", questions)
+    completion = manifest.get("completion") or {}
+    structural_passed = structural.get(
+        "passed", completion.get("structural_passed", completed)
+    )
+    structural_total = structural.get(
+        "total", completion.get("structural_total", questions)
+    )
 
     validation_path = directory / "validation-report.json"
     if validation_path.is_file():
@@ -151,7 +138,7 @@ def main() -> int:
     else:
         validation_text = "not run"
 
-    nodes, edges = _database_counts(manifest, query_db=not args.no_db)
+    nodes, edges = _database_counts(manifest)
     database_text = (
         f"{nodes:,} nodes and {edges:,} directed edges"
         if nodes is not None and edges is not None
@@ -164,6 +151,26 @@ def main() -> int:
     model_text = str(model_id or "deterministic/no model")
     if temperature is not None:
         model_text += f", temperature {temperature:g}"
+
+    usage = manifest.get("token_usage") or {}
+    input_tokens = usage.get("input_tokens")
+    output_tokens = usage.get("output_tokens")
+    total_tokens = usage.get("total_tokens")
+    requests = usage.get("requests")
+    if isinstance(input_tokens, int) and isinstance(output_tokens, int):
+        total_cost = (
+            input_tokens / 1_000_000 * args.input_cost_per_million
+            + output_tokens / 1_000_000 * args.output_cost_per_million
+        )
+        average_cost = total_cost / questions if questions else None
+        cost_basis = (
+            f"${args.input_cost_per_million:g}/M input, "
+            f"${args.output_cost_per_million:g}/M output"
+        )
+    else:
+        total_cost = None
+        average_cost = None
+        cost_basis = "token totals unavailable"
 
     print("Run metrics:\n")
     print(f"- Questions: {questions}")
@@ -181,6 +188,21 @@ def main() -> int:
     print(f"- Validation: {validation_text}")
     print(f"- Database: {database_text}")
     print(f"- Model: {model_text}")
+    print(f"- Model requests: {requests if requests is not None else 'not recorded'}")
+    print(f"- Input tokens: {input_tokens if input_tokens is not None else 'not recorded'}")
+    print(f"- Output tokens: {output_tokens if output_tokens is not None else 'not recorded'}")
+    print(f"- Total tokens: {total_tokens if total_tokens is not None else 'not recorded'}")
+    print(
+        f"- Model cost total: ${total_cost:.8f}"
+        if isinstance(total_cost, (int, float))
+        else "- Model cost total: not recorded"
+    )
+    print(
+        f"- Model cost per question: ${average_cost:.8f}"
+        if isinstance(average_cost, (int, float))
+        else "- Model cost per question: not recorded"
+    )
+    print(f"- Cost basis: {cost_basis}")
     wall_seconds = manifest.get("wall_seconds")
     if isinstance(wall_seconds, (int, float)):
         print(f"- Total wall time: {wall_seconds:.2f} seconds")

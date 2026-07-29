@@ -131,6 +131,23 @@ def main() -> int:
         if not isinstance(traces, list) or len(traces) != 100:
             errors.append("reasoning traces must be one JSON array of 100 records")
 
+    reviews = sorted((directory / "reviews").glob("*.md"))
+    if len(reviews) != 100:
+        errors.append(f"review directory contains {len(reviews)} files, expected 100")
+    review_markers = (
+        "## Question execution facts",
+        "- elapsed time:",
+        "## Reasoning and evidence path",
+    )
+    for review in reviews:
+        review_text = review.read_text(encoding="utf-8")
+        missing = [marker for marker in review_markers if marker not in review_text]
+        if missing:
+            errors.append(
+                f"{review.relative_to(directory)} missing review audit fields: "
+                + ", ".join(missing)
+            )
+
     report_requirements = {
         "metrics-self-report": [
             "§8.4", "p50", "p95", "p99", "cost per query",

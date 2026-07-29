@@ -104,11 +104,77 @@ def _render_step(index: int, step: dict[str, Any]) -> list[str]:
     return lines + [""]
 
 
-def render_review(qa: dict[str, Any], trace: dict[str, Any]) -> str:
+def _question_metrics(
+    qa: dict[str, Any],
+    manifest: dict[str, Any] | None,
+) -> dict[str, Any]:
+    manifest = manifest or {}
+    question_id = str(qa["question_id"])
+    questions = manifest.get("questions", [])
+    question = next(
+        (
+            item for item in questions
+            if isinstance(item, dict) and str(item.get("question_id")) == question_id
+        ),
+        {},
+    )
+    usage = question.get("token_usage")
+    exact_usage = isinstance(usage, dict)
+    if qa.get("answer_type") == "firewall_block":
+        usage = {
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "total_tokens": 0,
+            "requests": 0,
+        }
+        exact_usage = True
+    if not exact_usage:
+        usage = {}
+    return {
+        "latency_ms": qa.get("latency_ms"),
+        "status": question.get("status", qa.get("answer_type")),
+        "structural_outcome_check": question.get("structural_outcome_check"),
+        "input_tokens": usage.get("input_tokens"),
+        "output_tokens": usage.get("output_tokens"),
+        "total_tokens": usage.get("total_tokens"),
+        "model_requests": usage.get("requests"),
+        "model_cost_usd": (
+            0.0
+            if qa.get("answer_type") == "firewall_block"
+            else question.get("model_cost_usd")
+        ),
+        "per_question_usage_exact": exact_usage,
+    }
+
+
+def render_review(
+    qa: dict[str, Any],
+    trace: dict[str, Any],
+    manifest: dict[str, Any] | None = None,
+) -> str:
     question_id = str(qa["question_id"])
     key, number = _question_parts(question_id)
     title = "PrimeKG" if key == "KG" else "MultiHop RAG"
     supported_by = trace.get("answer_supported_by", [])
+    metrics = _question_metrics(qa, manifest)
+    execution_facts = [
+        f"- disposition/status: `{metrics['status']}`",
+        f"- elapsed time: `{metrics['latency_ms']} ms`",
+    ]
+    if metrics["structural_outcome_check"] is not None:
+        execution_facts.insert(
+            1,
+            f"- structural outcome check: `{metrics['structural_outcome_check']}` "
+            "(shape/evidence check only; not answer accuracy)",
+        )
+    if metrics["per_question_usage_exact"]:
+        execution_facts.extend([
+            f"- model requests: `{metrics['model_requests']}`",
+            f"- input tokens: `{metrics['input_tokens']}`",
+            f"- output tokens: `{metrics['output_tokens']}`",
+            f"- total tokens: `{metrics['total_tokens']}`",
+            f"- measured model cost: `{metrics['model_cost_usd']} USD`",
+        ])
     lines = [
         f"# {title} - Q{number}",
         "",
@@ -123,6 +189,10 @@ def render_review(qa: dict[str, Any], trace: dict[str, Any]) -> str:
         f"- latency: `{qa.get('latency_ms')} ms`",
         f"- truncated: `{qa.get('truncated')}`",
         f"- reasoning trace: `{qa.get('reasoning_trace_ref')}`",
+        "",
+        "## Question execution facts",
+        "",
+        *execution_facts,
         "",
         "## Answer",
         "",
@@ -186,6 +256,12 @@ def main() -> int:
     traces = json.loads(trace_path.read_text(encoding="utf-8"))
     if not isinstance(traces, list) or not all(isinstance(item, dict) for item in traces):
         raise SystemExit(f"{trace_path}: expected a JSON array of objects")
+    manifest_path = source / "run-manifest.json"
+    manifest = (
+        json.loads(manifest_path.read_text(encoding="utf-8"))
+        if manifest_path.exists()
+        else {}
+    )
 
     qa_by_id = {str(item.get("question_id")): item for item in qa_records}
     trace_by_id = {str(item.get("question_id")): item for item in traces}
@@ -213,7 +289,7 @@ def main() -> int:
                 f"refusing to overwrite {destination}; pass --overwrite to replace reviews"
             )
         destination.write_text(
-            render_review(qa_by_id[question_id], trace_by_id[question_id]),
+            render_review(qa_by_id[question_id], trace_by_id[question_id], manifest),
             encoding="utf-8",
             newline="\n",
         )

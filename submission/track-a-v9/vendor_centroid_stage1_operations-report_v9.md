@@ -4,13 +4,13 @@
 
 - Questions: 95
 - Concurrency: 1
-- Minimum latency: 1.48 seconds
-- Mean latency: 4.57 seconds
-- p50: 2.72 seconds
-- p95: 9.82 seconds
-- p99: 22.97 seconds
-- Maximum latency: 80.91 seconds
-- Structural completion: 100/100
+- Minimum latency: 1.76 seconds
+- Mean latency: 4.55 seconds
+- p50: 2.93 seconds
+- p95: 8.86 seconds
+- p99: 19.26 seconds
+- Maximum latency: 78.10 seconds
+- Structural completion: 99/100
 - Database validation: 0 errors, 0 warnings
 - Database: 62,030 nodes and 4,236,182 directed edges
 - Model: xai.grok-4.3, requested temperature not sent
@@ -39,15 +39,15 @@ finalization. No warm-up exclusions were applied.
 
 ## Cost and scalability
 
-- OCI requests measured: 95
-- Input tokens: 252,137
-- Output tokens: 13,450
-- Total tokens: 265,587
-- Measured model cost total: $0.348796
-- Measured model cost per query: $0.00348796
+- OCI requests measured: 96
+- Input tokens: 254,814
+- Output tokens: 13,328
+- Total tokens: 268,142
+- Measured model cost total: $0.351838
+- Measured model cost per query: $0.00351838
 - Incremental local compute cost: $0.000000
 - Incremental local storage cost: $0.000000
-- Estimated fully loaded cost per query: $0.00348796
+- Estimated fully loaded cost per query: $0.00351838
 - Pricing basis: Oracle PaaS and IaaS Global Price List,
   2026-05-01
 

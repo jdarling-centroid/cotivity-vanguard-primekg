@@ -1,26 +1,26 @@
 {
   "authoritative": true,
-  "created_at": "2026-07-29T15:12:24.012481+00:00",
+  "created_at": "2026-07-29T15:58:16.366341+00:00",
   "required_artifacts": [
     {
       "name": "vendor_centroid_stage1_qa-results_v9.jsonl",
-      "sha256": "d6898dfc13d7f691ac3e3c21f7189bbd0d3d1d555491b90204e074dcadf0f5ca",
-      "size": 1972778
+      "sha256": "067b0752ff3732e46c807e62179b532019b89d5013088fc69ce1d2719d4d6740",
+      "size": 1936878
     },
     {
       "name": "vendor_centroid_stage1_reasoning-traces_v9.json",
-      "sha256": "9e4ec63fff47244a9876f8d515d34258e4f06650d7e8c34ec2a93d33f319ac88",
-      "size": 2120379
+      "sha256": "517116e2c35dd2df04224b41b4c710413635f3222477a438295d532383413c6c",
+      "size": 2094843
     },
     {
       "name": "vendor_centroid_stage1_metrics-self-report_v9.md",
-      "sha256": "07b5ad7bb57701d5ac0a99dcbb1d27d8774034c20b4de4fb4f852ae192dbcfef",
-      "size": 1321
+      "sha256": "cb091d47518c20c9a29a8c7795c1d7737cd32e604bf1172f4a4c06c7cb7d93c4",
+      "size": 1320
     },
     {
       "name": "vendor_centroid_stage1_operations-report_v9.md",
-      "sha256": "9d72188b7b14b6bf8e021b76ec3648ff6e184c54220b62ace951e3ec78a46931",
-      "size": 2101
+      "sha256": "53571def57eab3b7a7e4bf35e15fc8af1c8f078b1d378b979f7490877b0054d1",
+      "size": 2100
     },
     {
       "name": "vendor_centroid_stage1_methodology-summary_v9.md",

@@ -120,6 +120,7 @@ def main() -> int:
     source_manifest = _json(source / "run-manifest.json")
     token_usage = source_manifest.get("token_usage")
     cost_per_query = source_manifest.get("cost_per_query")
+    source_questions = source_manifest.get("questions")
     if (
         not isinstance(token_usage, dict)
         or not all(
@@ -129,9 +130,23 @@ def main() -> int:
         or not isinstance(cost_per_query, dict)
         or cost_per_query.get("status") != "model_cost_measured"
         or not isinstance(cost_per_query.get("model_cost_usd_per_query"), (int, float))
+        or not isinstance(source_questions, list)
+        or len(source_questions) != len(qa_records)
+        or any(
+            not isinstance(item, dict)
+            or not isinstance(item.get("token_usage"), dict)
+            or not all(
+                isinstance(item["token_usage"].get(key), int)
+                and item["token_usage"][key] >= 0
+                for key in ("input_tokens", "output_tokens", "total_tokens", "requests")
+            )
+            or not isinstance(item.get("model_cost_usd"), (int, float))
+            for item in source_questions
+        )
     ):
         raise SystemExit(
-            "source run lacks measured OCI token usage and model cost per query"
+            "source run lacks measured run-level and per-question OCI token usage "
+            "and model cost"
         )
     cost_per_query = dict(cost_per_query)
     cost_per_query.update({
@@ -216,6 +231,7 @@ def main() -> int:
         },
         "token_usage": token_usage,
         "cost_per_query": cost_per_query,
+        "questions": source_questions,
         "artifacts": {},
     }
     run_manifest_path = target / "run-manifest.json"
@@ -455,6 +471,22 @@ submission does not represent any assumption as a Cotiviti-approved response.
         if not environment.get("PYTHONPATH")
         else source_root + os.pathsep + environment["PYTHONPATH"]
     )
+    subprocess.run(
+        [
+            sys.executable,
+            str(repository / "scripts" / "generate-review-markdown.py"),
+            str(target),
+        ],
+        cwd=repository,
+        env=environment,
+        check=True,
+    )
+    review_count = len(list((target / "reviews").glob("*.md")))
+    if review_count != len(qa_records):
+        raise SystemExit(
+            f"review generation produced {review_count} files; "
+            f"expected {len(qa_records)}"
+        )
     for command in validation_commands:
         subprocess.run(
             command,

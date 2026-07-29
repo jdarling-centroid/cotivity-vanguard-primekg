@@ -99,7 +99,30 @@ python scripts/validate-track-a.py submission/track-a-v1 --verify-db
 
 # Rebuild human-readable review Markdown from an existing artifact pair
 python scripts/generate-review-markdown.py submission/track-a-v1
+
+# Concise final metrics for any Track A or Track B run
+python scripts/run-report.py submission/track-a-v1
+
+# Build and fully validate an RFP-ready package.
+./run-submission.sh --track a --version 8
 ```
+
+The repository defaults the vendor ID to `centroid`, reads the validated Track A
+source from `submission/track-a-v1`, and writes `submission/track-a-v<version>`.
+Use `--vendor-id`, `--source`, or `--out` only when an override is needed. The
+command fails unless database-provenance and literal RFP package validation both
+finish with zero errors and zero warnings. Track B currently fails closed because
+its complete RFP packaging workflow has not yet been implemented.
+
+Test and subset runs may use descriptive labels and pass runner flags through:
+
+```sh
+./run-submission.sh --track a --version 8-q83-a --question 83
+./run-submission.sh --track a --version 8-q83-b --questions 83 --temperature 0.1
+```
+
+These write separate ignored test-run directories. Only a full run without
+pass-through test flags enforces the RFP's numeric submission version.
 
 `compare-planners.py` reports plan, disposition, answer-node-set, and truncation
 differences as review items. It does not decide which implementation is correct.

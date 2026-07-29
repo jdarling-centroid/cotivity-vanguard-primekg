@@ -1,0 +1,89 @@
+{
+  "artifacts": {
+    "vendor_centroid_stage1_clarification-log_v7.md": "1cae4eb5ee70bed23a51a2f1d70765e64cc88aa3ff594fb9c1aefc1fc8de088f",
+    "vendor_centroid_stage1_methodology-summary_v7.md": "58585a635ae6175576e15769c070eeba935c60bb69baba88f8e72d86ba9ba7ad",
+    "vendor_centroid_stage1_metrics-self-report_v7.md": "7a1f898b94e6a8e8694d195f81d38ab275b491f344eff5f993fd3b10f6900be9",
+    "vendor_centroid_stage1_operations-report_v7.md": "1b07cc4c6598d6a042aa999e8b921bab0cfbeaf2601548666819c6b4cae012a3",
+    "vendor_centroid_stage1_qa-results_v7.jsonl": "332cec38b7615375e5e249cab03b7b8fac32a2e2c7feecf2452b21c0d6e5205c",
+    "vendor_centroid_stage1_reasoning-traces_v7.json": "872e87666c38f23dc35aa94553d1f11d76286bf78c8fc75d50267f4e00796d49",
+    "vendor_centroid_stage1_submission-manifest_v7.json": "0f2b475e37073b33b8c958f4e4231e236a49afe874179594b87d14cf087a1ea4"
+  },
+  "authoritative": true,
+  "authoritative_version": 7,
+  "completion": {
+    "explicitly_not_accuracy": true,
+    "qa_records": 100,
+    "reasoning_traces": 100,
+    "structural_passed": 100,
+    "structural_total": 100
+  },
+  "concurrency": 1,
+  "cost": {
+    "basis": "OCI runtime response did not include billable token usage and no billing export was queried; no unsupported estimate is reported.",
+    "status": "not_available"
+  },
+  "created_at": "2026-07-29T14:39:20.770303+00:00",
+  "database": {
+    "backend": "pgq",
+    "call_timeout_ms": 20000,
+    "directed_edge_count": 4236182,
+    "dsn_host": "localhost",
+    "load_journal": {
+      "directed_edges_loaded": 4236182,
+      "kg_checksum": "957238769f95a761b1aaa082d2ae14b6",
+      "nodes_loaded": 62030,
+      "relations": "bidirectional-v2:contraindication,disease_disease,disease_phenotype_positive,disease_protein,drug_drug,drug_effect,drug_protein,indication,off-label use,pathway_protein,phenotype_phenotype,phenotype_protein,protein_protein",
+      "status": "completed",
+      "updated_at": "2026-07-28T21:17:38.446373"
+    },
+    "node_count": 62030,
+    "oracle_client_reported_version": "23.26.2.0.0",
+    "remote_allowed": false
+  },
+  "dataset": "PrimeKG",
+  "feature_flags": {
+    "model_database_composition": false,
+    "question_specific_shortcuts": false,
+    "remote_database": false
+  },
+  "hardware": {
+    "cpu_count": 14,
+    "cpu_model": "Apple M4 Max",
+    "gpu": "not detected/reported by harness",
+    "machine": "arm64",
+    "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "ram_gib": 36
+  },
+  "latency_ms": {
+    "excludes_firewall_and_zero_ms": true,
+    "max": 75549,
+    "mean": 4313.12,
+    "min": 1543,
+    "p50": 2718.0,
+    "p95": 9579.3,
+    "p99": 19391.52,
+    "queries": 95
+  },
+  "model": {
+    "max_tokens": 1800,
+    "model_id": "xai.grok-4.3",
+    "prompt_version": "primekg-planner-1.5",
+    "provider": "oci",
+    "retries": 2,
+    "role": "closed-schema semantic planner only",
+    "temperature_requested": 0.0,
+    "timeout_seconds": 300.0
+  },
+  "question_count": 100,
+  "schema_version": "vanguard-stage1-run-metrics-1.0",
+  "source_run": {
+    "authoritative_version": 1,
+    "created_at": "2026-07-28T22:50:09.113463+00:00",
+    "directory": "track-a-v1",
+    "qa_sha256": "332cec38b7615375e5e249cab03b7b8fac32a2e2c7feecf2452b21c0d6e5205c",
+    "reasoning_traces_sha256": "872e87666c38f23dc35aa94553d1f11d76286bf78c8fc75d50267f4e00796d49"
+  },
+  "stage": 1,
+  "track": "A",
+  "vendor_id": "centroid"
+}

@@ -222,7 +222,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--vendor-id", help="Required with --out; actual Cotiviti vendor identifier.")
     parser.add_argument("--version", type=int, default=1)
     parser.add_argument("--input", type=Path)
-    parser.add_argument("--question", "--questions", dest="numbers", action="append", default=[])
+    parser.add_argument(
+        "--question", "--questions",
+        dest="numbers", action="append", default=[],
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
 
@@ -323,6 +326,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.out is not None:
         artifact_paths = [fin.results_path, fin.traces_path]
         manifest = {
+            "run_label": os.environ.get("VPK_RUN_LABEL"),
             "scope": "Stage 1 Track A PrimeKG only",
             "track_b_modified": False,
             "authoritative_version": args.version,

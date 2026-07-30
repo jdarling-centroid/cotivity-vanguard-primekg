@@ -18,6 +18,7 @@ vendor_id="centroid"
 source_run=""
 output_dir=""
 planner_fallback=true
+track_b_shared_entity_fallback=true
 passthrough=()
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -37,6 +38,10 @@ Optional:
                      Use deterministic classifier after agent retries (default)
   --no-deterministic-planner-fallback
                      Disable the fallback for comparison
+  --deterministic-shared-entity-fallback
+                     Enable Track B cross-document fallback (default)
+  --no-deterministic-shared-entity-fallback
+                     Disable Track B cross-document fallback for comparison
   -h, --help        Show this help
 
 Example:
@@ -80,13 +85,28 @@ while [[ $# -gt 0 ]]; do
       planner_fallback=false
       shift
       ;;
+    --deterministic-shared-entity-fallback)
+      track_b_shared_entity_fallback=true
+      shift
+      ;;
+    --no-deterministic-shared-entity-fallback)
+      track_b_shared_entity_fallback=false
+      shift
+      ;;
     -h|--help)
       usage
       echo
-      echo "Track A runner options passed through by this wrapper:"
-      PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}" \
-        "$repo_root/.venv/bin/python3" \
-        "$repo_root/scripts/run-primekg-questions.py" --help
+      if [[ "$track" == "b" ]]; then
+        echo "Track B runner options passed through by this wrapper:"
+        PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}" \
+          "$repo_root/.venv/bin/python3" \
+          "$repo_root/scripts/run-track-b-questions.py" --help
+      else
+        echo "Track A runner options passed through by this wrapper:"
+        PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}" \
+          "$repo_root/.venv/bin/python3" \
+          "$repo_root/scripts/run-primekg-questions.py" --help
+      fi
       exit 0
       ;;
     *)
@@ -168,5 +188,61 @@ if [[ "$track" == "a" ]]; then
     "$source_run" "$output_dir" "$vendor_id" "$version"
 fi
 
-echo "Track B packaging is not yet RFP-complete; refusing to create a package." >&2
-exit 69
+if [[ -n "$source_run" ]]; then
+  echo "--source is not supported for Track B; Track B runs directly into --out" >&2
+  exit 64
+fi
+if [[ ${#passthrough[@]} -eq 0 && ! "$version" =~ ^[1-9][0-9]*$ ]]; then
+  echo "A full Track B submission requires a numeric --version" >&2
+  exit 64
+fi
+output_dir=${output_dir:-submission/track-b-v${version}}
+artifact_version=1
+if [[ "$version" =~ ^([1-9][0-9]*) ]]; then
+  artifact_version=${BASH_REMATCH[1]}
+fi
+export PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}"
+track_b_fallback_arguments=()
+if [[ "$track_b_shared_entity_fallback" == true ]]; then
+  track_b_fallback_arguments+=("--deterministic-shared-entity-fallback")
+fi
+if [[ ${#passthrough[@]} -gt 0 ]]; then
+  "$repo_root/.venv/bin/python3" scripts/run-track-b-questions.py \
+    --vendor-id "$vendor_id" \
+    --version "$artifact_version" \
+    --out "$output_dir" \
+    "${track_b_fallback_arguments[@]}" \
+    "${passthrough[@]}"
+else
+  "$repo_root/.venv/bin/python3" scripts/run-track-b-questions.py \
+    --vendor-id "$vendor_id" \
+    --version "$artifact_version" \
+    --out "$output_dir" \
+    "${track_b_fallback_arguments[@]}"
+fi
+
+validation_args=()
+if [[ ${#passthrough[@]} -gt 0 ]]; then
+  validation_args+=("--allow-partial")
+else
+  "$repo_root/.venv/bin/python3" scripts/build-track-b-graph.py \
+    --vendor-id "$vendor_id" \
+    --version "$artifact_version" \
+    --out "$output_dir"
+  "$repo_root/.venv/bin/python3" scripts/prepare-track-b-submission.py \
+    "$output_dir" \
+    --vendor-id "$vendor_id" \
+    --version "$artifact_version"
+fi
+if [[ ${#validation_args[@]} -gt 0 ]]; then
+  "$repo_root/.venv/bin/python3" scripts/validate-track-b.py \
+    "$output_dir" "${validation_args[@]}"
+else
+  "$repo_root/.venv/bin/python3" scripts/validate-track-b.py "$output_dir"
+fi
+
+echo
+echo "Track B artifacts and reviews created:"
+echo "  $output_dir"
+echo "Report:"
+echo "  ./run-report.sh --path $output_dir"

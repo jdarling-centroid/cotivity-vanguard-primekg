@@ -31,6 +31,14 @@ def test_run_report_formats_manifest_metrics(tmp_path: Path) -> None:
                 "output_usd_per_million_tokens": 2.5,
             },
         },
+        "questions": [
+            {"question_id": "Q-MH-001", "status": "answered_with_evidence"},
+            {
+                "question_id": "Q-MH-002",
+                "status": "valid_insufficient_evidence",
+            },
+            {"question_id": "Q-MH-003", "status": "firewall_blocked"},
+        ],
     }
     (tmp_path / "run-manifest.json").write_text(json.dumps(manifest))
     (tmp_path / "validation-report.json").write_text(json.dumps({
@@ -38,13 +46,20 @@ def test_run_report_formats_manifest_metrics(tmp_path: Path) -> None:
     }))
     (tmp_path / "vendor_test_stage1_qa-results_v1.jsonl").write_text(
         "\n".join(json.dumps(record) for record in [
-            {"vendor_answer": "A", "answer_type": "entity", "latency_ms": 2000},
             {
+                "question_id": "Q-MH-001",
+                "vendor_answer": "A",
+                "answer_type": "entity",
+                "latency_ms": 2000,
+            },
+            {
+                "question_id": "Q-MH-002",
                 "vendor_answer": "Insufficient evidence",
                 "answer_type": "short_text",
                 "latency_ms": 6000,
             },
             {
+                "question_id": "Q-MH-003",
                 "vendor_answer": "Won't do that",
                 "answer_type": "firewall_block",
                 "latency_ms": 0,
@@ -67,7 +82,8 @@ def test_run_report_formats_manifest_metrics(tmp_path: Path) -> None:
     )
 
     assert "- Answered: 1" in result.stdout
-    assert "- Unanswered: 1" in result.stdout
+    assert "- Valid insufficient evidence: 1" in result.stdout
+    assert "- Unanswered: 0" in result.stdout
     assert "- Firewall blocked: 1" in result.stdout
     assert "- Mean latency (excluding firewall): 4.00 seconds" in result.stdout
     assert "- Minimum latency (excluding firewall): 2.00 seconds" in result.stdout

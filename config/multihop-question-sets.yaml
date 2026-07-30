@@ -365,35 +365,35 @@ sections:
     question: Considering the information from a BBC article detailing Sridevi's achievements in the Indian film industry and a Times of India report on her posthumous honors, which single character from a film portrayed by Sridevi has been recognized for its cultural impact and has also been commemorated with a special award after her passing?
     metadata:
       adversarial: false
-      expected_outcome: answered
+      expected_outcome: insufficient_evidence
       answer_shape: short_text
       requires_evidence: false
   - number: 52
     question: What is the first letter of the name of the company that, according to an article from The Financial Times, received the most European patents in 2021, and is also mentioned in a Bloomberg article as having faced a significant legal challenge at the European Patent Office over one of its key patents?
     metadata:
       adversarial: false
-      expected_outcome: answered
+      expected_outcome: insufficient_evidence
       answer_shape: short_text
       requires_evidence: true
   - number: 53
     question: Considering the features highlighted in an article from The Verge about the iPhone 13's camera system and the battery life improvements mentioned in a piece by CNET, which model of the iPhone 13 series, represented by a single Roman numeral, was noted for having the best combination of both attributes?
     metadata:
       adversarial: false
-      expected_outcome: answered
+      expected_outcome: insufficient_evidence
       answer_shape: entity
       requires_evidence: true
   - number: 54
     question: Considering the information from an article in The New York Times about the band Used To Be Young's latest tour and a review in Rolling Stone discussing the standout performance of a particular member during a recent concert, which member of Used To Be Young was highlighted for their exceptional solo during the tour's opening night and also plays the instrument that begins with the letter 'B'?
     metadata:
       adversarial: false
-      expected_outcome: answered
+      expected_outcome: insufficient_evidence
       answer_shape: entity
       requires_evidence: true
   - number: 55
     question: Considering the economic forecasts from a Bloomberg article and the archaeological discoveries reported by Al Jazeera, which country in North Africa, expected to see a significant rise in GDP, also recently unveiled an ancient artifact believed to be from the reign of a pharaoh whose name begins with the letter "T"?
     metadata:
       adversarial: false
-      expected_outcome: answered
+      expected_outcome: insufficient_evidence
       answer_shape: entity
       requires_evidence: true
   - number: 56

@@ -96,10 +96,26 @@ def main() -> int:
     qa_records, trace_count = _artifacts(directory)
     completed = min(len(qa_records), trace_count)
     firewall_count = sum(_is_firewall(record) for record in qa_records)
-    unanswered_count = sum(
-        _is_unanswered(record) for record in qa_records if not _is_firewall(record)
+    question_metrics = {
+        str(item.get("question_id")): item
+        for item in manifest.get("questions", [])
+        if isinstance(item, dict)
+    }
+    valid_insufficient_count = sum(
+        item.get("status") == "valid_insufficient_evidence"
+        for item in question_metrics.values()
     )
-    answered_count = len(qa_records) - firewall_count - unanswered_count
+    unanswered_count = sum(
+        _is_unanswered(record)
+        and question_metrics.get(str(record.get("question_id")), {}).get("status")
+        != "valid_insufficient_evidence"
+        for record in qa_records
+        if not _is_firewall(record)
+    )
+    answered_count = (
+        len(qa_records) - firewall_count - valid_insufficient_count
+        - unanswered_count
+    )
     measured_latencies = [
         int(record["latency_ms"])
         for record in qa_records
@@ -180,6 +196,7 @@ def main() -> int:
     print("-------")
     print(f"- Outcomes recorded: {len(qa_records)}/{questions}")
     print(f"- Answered: {answered_count}")
+    print(f"- Valid insufficient evidence: {valid_insufficient_count}")
     print(f"- Firewall blocked: {firewall_count}")
     print(f"- Unanswered: {unanswered_count}")
     print(f"- Structural checks: {structural_passed}/{structural_total}")

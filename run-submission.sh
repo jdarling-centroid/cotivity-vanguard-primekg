@@ -139,38 +139,13 @@ if [[ "$planner_fallback" == false ]]; then
 fi
 
 if [[ "$track" == "a" ]]; then
-  if [[ ${#passthrough[@]} -gt 0 ]]; then
-    output_dir=${output_dir:-.tmp/track-a-${version}}
-    artifact_version=1
-    if [[ "$version" =~ ^([1-9][0-9]*) ]]; then
-      artifact_version=${BASH_REMATCH[1]}
-    fi
-    export PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}"
-    export VPK_RUN_LABEL="$version"
-    exec "$repo_root/.venv/bin/python3" scripts/run-primekg-questions.py \
-      --planner agent \
-      --agent-provider oci \
-      --model-id xai.grok-4.3 \
-      --temperature 0 \
-      "$fallback_argument" \
-      --backend pgq \
-      --vendor-id "$vendor_id" \
-      --version "$artifact_version" \
-      --out "$output_dir" \
-      "${passthrough[@]}"
-  fi
   if [[ ! "$version" =~ ^[1-9][0-9]*$ ]]; then
-    echo "A full RFP submission requires a numeric --version; use a label with --question/--questions for test runs." >&2
+    echo "A full RFP submission requires a numeric --version." >&2
     exit 64
   fi
   output_dir=${output_dir:-submission/track-a-v${version}}
-  if [[ -z "$source_run" ]]; then
-    source_run=".tmp/track-a-v${version}-measured-source"
-    if [[ -e "$source_run" ]]; then
-      echo "Refusing to overwrite existing measured source run: $source_run" >&2
-      exit 73
-    fi
-    export PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}"
+  export PYTHONPATH="$repo_root/src${PYTHONPATH:+:$PYTHONPATH}"
+  if [[ ! -e "$output_dir" ]]; then
     "$repo_root/.venv/bin/python3" scripts/run-primekg-questions.py \
       --planner agent \
       --agent-provider oci \
@@ -180,12 +155,16 @@ if [[ "$track" == "a" ]]; then
       --backend pgq \
       --vendor-id "$vendor_id" \
       --version "$version" \
-      --out "$source_run"
+      --out "$output_dir" \
+      "${passthrough[@]+"${passthrough[@]}"}"
+    if [[ ${#passthrough[@]} -gt 0 ]]; then
+      exit 0
+    fi
     "$repo_root/.venv/bin/python3" scripts/validate-track-a.py \
-      "$source_run" --verify-db
+      "$output_dir" --verify-db
   fi
   exec scripts/prepare-track-a-submission.sh \
-    "$source_run" "$output_dir" "$vendor_id" "$version"
+    "$output_dir" "$output_dir" "$vendor_id" "$version"
 fi
 
 if [[ -n "$source_run" ]]; then

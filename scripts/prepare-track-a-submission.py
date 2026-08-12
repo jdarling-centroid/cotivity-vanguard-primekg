@@ -88,7 +88,8 @@ def main() -> int:
 
     source = args.source.resolve()
     target = args.target.resolve()
-    if target.exists():
+    in_place = source == target
+    if not in_place and target.exists():
         raise SystemExit(f"refusing to overwrite existing target: {target}")
     qa_sources = sorted(source.glob("vendor_*_stage1_qa-results_v*.jsonl"))
     trace_sources = sorted(source.glob("vendor_*_stage1_reasoning-traces_v*.json"))
@@ -103,13 +104,14 @@ def main() -> int:
     ):
         raise SystemExit("source run lacks a clean database-provenance validation")
 
-    target.mkdir(parents=True)
     suffix = f"_v{args.version}"
     prefix = f"vendor_{args.vendor_id}_stage1_"
     qa_path = target / f"{prefix}qa-results{suffix}.jsonl"
     trace_path = target / f"{prefix}reasoning-traces{suffix}.json"
-    shutil.copyfile(qa_sources[0], qa_path)
-    shutil.copyfile(trace_sources[0], trace_path)
+    if not in_place:
+        target.mkdir(parents=True)
+        shutil.copyfile(qa_sources[0], qa_path)
+        shutil.copyfile(trace_sources[0], trace_path)
 
     qa_records = [
         json.loads(line)

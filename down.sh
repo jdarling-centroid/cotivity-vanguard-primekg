@@ -19,9 +19,9 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ "$PURGE" == "yes" ]]; then
-  docker compose -f docker/compose.yaml down -v
+  docker compose --env-file .env -f docker/compose.yaml down -v
   echo "Local Oracle stopped and data volume removed."
 else
-  docker compose -f docker/compose.yaml down
+  docker compose --env-file .env -f docker/compose.yaml down
   echo "Local Oracle stopped (data volume preserved)."
 fi

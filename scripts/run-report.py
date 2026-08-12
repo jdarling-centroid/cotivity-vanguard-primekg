@@ -71,9 +71,98 @@ def _database_counts(manifest: dict[str, Any]) -> tuple[Any, Any]:
     return database.get("node_count"), database.get("directed_edge_count")
 
 
+def _load_ground_truth(repo_root: Path, dataset: str) -> dict[int, list[str]]:
+    """Load actual_nodes from ground truth YAML by dataset."""
+    import yaml  # pyyaml; available in project venv
+
+    if dataset == "PrimeKG":
+        yaml_file = repo_root / "config" / "primekg-question-sets.yaml"
+    else:
+        yaml_file = repo_root / "config" / "multihop-question-sets.yaml"
+
+    if not yaml_file.is_file():
+        return {}
+
+    with open(yaml_file, encoding="utf-8") as f:
+        data = yaml.safe_load(f)
+    
+    ground_truth = {}
+    for section in data.get("sections", []):
+        for q in section.get("questions", []):
+            qnum = q.get("number")
+            nodes = q.get("metadata", {}).get("actual_nodes", [])
+            if qnum is not None and nodes:
+                ground_truth[qnum] = [str(n) for n in nodes]
+    
+    return ground_truth
+
+
+def _node_matching_metrics(
+    manifest_questions: list[dict[str, Any]], ground_truth: dict[int, list[str]]
+) -> dict[str, Any]:
+    """Calculate precision, recall, and exact match for returned nodes."""
+    total = 0
+    exact_matches = 0
+    precisions = []
+    recalls = []
+    per_question = []
+    full_coverage_count = 0
+    
+    for q in manifest_questions:
+        qnum = q.get("number")
+        if qnum not in ground_truth:
+            continue
+        
+        returned = set(q.get("answer_node_ids", []))
+        expected = set(ground_truth[qnum])
+        
+        if not expected:
+            continue
+        
+        total += 1
+        
+        # Precision: of what we returned, how much was correct
+        if returned:
+            tp = len(returned & expected)
+            precision = tp / len(returned)
+            precisions.append(precision)
+        else:
+            precision = 0.0
+        
+        # Recall: of what we should have returned, how much did we get
+        tp = len(returned & expected)
+        recall = tp / len(expected)
+        recalls.append(recall)
+        
+        # Exact match: did we get exactly the right set
+        if returned == expected:
+            exact_matches += 1
+            full_coverage_count += 1
+        
+        per_question.append({
+            "number": qnum,
+            "expected_count": len(expected),
+            "returned_count": len(returned),
+            "recall": recall,
+            "precision": precision,
+            "exact_match": returned == expected,
+        })
+    
+    return {
+        "total_questions_with_ground_truth": total,
+        "exact_matches": exact_matches,
+        "full_coverage_count": full_coverage_count,
+        "exact_match_rate": exact_matches / total if total > 0 else None,
+        "mean_precision": statistics.fmean(precisions) if precisions else None,
+        "mean_recall": statistics.fmean(recalls) if recalls else None,
+        "per_question": per_question,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("run_directory", type=Path)
+    parser.add_argument("--verbose", action="store_true", help="Show per-question node matching details")
     parser.add_argument("--input-cost-per-million", type=float, default=1.25)
     parser.add_argument("--output-cost-per-million", type=float, default=2.50)
     args = parser.parse_args()
@@ -190,6 +279,12 @@ def main() -> int:
         average_cost = None
         cost_basis = "token totals unavailable"
 
+    # Load ground truth and calculate node matching metrics
+    repo_root = directory.parent.parent
+    dataset = manifest.get("dataset", "PrimeKG")
+    ground_truth = _load_ground_truth(repo_root, dataset)
+    node_metrics = _node_matching_metrics(manifest.get("questions", []), ground_truth)
+
     print("Vanguard run report")
     print("===================\n")
     print("Outcome")
@@ -201,6 +296,34 @@ def main() -> int:
     print(f"- Unanswered: {unanswered_count}")
     print(f"- Structural checks: {structural_passed}/{structural_total}")
     print(f"- Validation: {validation_text}")
+    
+    if node_metrics.get("total_questions_with_ground_truth", 0) > 0:
+        print("\nNode Matching (vs. ground truth)")
+        print("--------------------------------")
+        exact = node_metrics.get("exact_match_rate")
+        prec = node_metrics.get("mean_precision")
+        recall = node_metrics.get("mean_recall")
+        total_gt = node_metrics.get("total_questions_with_ground_truth", 0)
+        full_cov = node_metrics.get("full_coverage_count", 0)
+        incomplete_count = total_gt - full_cov
+        print(f"- Questions with ground truth: {total_gt}")
+        print(f"- Full coverage (100% recall): {full_cov}/{total_gt}")
+        print(f"- Incomplete coverage: {incomplete_count}/{total_gt}")
+        print(f"- Exact matches: {node_metrics.get('exact_matches')}")
+        print(f"- Exact match rate: {exact:.2%}" if exact is not None else "- Exact match rate: not available")
+        print(f"- Mean precision: {prec:.2%}" if prec is not None else "- Mean precision: not available")
+        print(f"- Mean recall: {recall:.2%}" if recall is not None else "- Mean recall: not available")
+        
+        # Show questions with < 100% recall (only in verbose mode)
+        incomplete = [pq for pq in node_metrics.get("per_question", []) if pq["recall"] < 1.0]
+        if args.verbose:
+            print("\n  Per-question node matching:")
+            for pq in sorted(node_metrics.get("per_question", []), key=lambda x: x["number"]):
+                match_str = "✓" if pq["exact_match"] else "✗"
+                print(f"    Q{pq['number']:3d} {match_str}: expected {pq['expected_count']:5d}, got {pq['returned_count']:5d}, recall {pq['recall']:6.1%}")
+        elif incomplete:
+            print(f"\n  {len(incomplete)} questions with incomplete coverage. Use --verbose to see all details.")
+    
     print("\nPerformance")
     print("-----------")
     print(f"- Concurrency: {manifest.get('concurrency', latency.get('concurrency', 1))}")

@@ -16,7 +16,6 @@ from ..logging import get_logger
 from .specs import RelSpec, TARGETS
 
 MAX_EVIDENCE_EDGES = 25  # legacy compatibility; paths are now answer-scoped
-MAX_ANSWER_NODES = 40
 _PATH_SEP = "\x1f"
 
 log = get_logger("query_engine")
@@ -301,9 +300,8 @@ class QueryEngine:
             if node[0] not in seen_nodes:
                 seen_nodes.add(node[0])
                 deduped.append(node)
-        # UNION ALL does not preserve a CTE's internal ordering.  Sort before
-        # applying the output cap so identical plans always retain the same
-        # answer-node boundary and therefore the same evidence set.
+        # UNION ALL does not preserve a CTE's internal ordering.  Sort so
+        # identical plans always return the same answer-node sequence.
         nodes = sorted(deduped, key=lambda node: node[0])
 
         # When support rows are present, only database-returned answer nodes with
@@ -311,16 +309,12 @@ class QueryEngine:
         if support:
             supported = {path.answer_node_id for path in support}
             nodes = [node for node in nodes if node[0] in supported]
-        original_count = len(nodes)
-        nodes = nodes[:MAX_ANSWER_NODES]
-        kept = {node[0] for node in nodes}
-        support = [path for path in support if path.answer_node_id in kept]
         return QueryResult(
             nodes=nodes,
             support=support,
             sql=sql,
             binds=dict(binds.values),
-            truncated=original_count > len(nodes),
+            truncated=False,
             edge_ids=legacy_edges,
         )
 
@@ -351,7 +345,7 @@ class QueryEngine:
             f"ans AS (\n  SELECT n.node_id, n.name, n.node_type\n"
             f"  FROM {last} lz JOIN pk_nodes n ON n.node_id = lz.node_id\n"
             f"  WHERE {ans_where}\n"
-            f"  ORDER BY n.node_id FETCH FIRST {MAX_ANSWER_NODES + 1} ROWS ONLY\n)"
+            f"  ORDER BY n.node_id\n)"
         )
         support_ctes, support_name = _backtrack_support(
             "l", "ans", names, steps, binds
@@ -397,7 +391,7 @@ class QueryEngine:
             f"ON ax.node_id = bx.node_id\n"
             f"  JOIN pk_nodes n ON n.node_id = ax.node_id\n"
             f"  WHERE {ans_where}\n"
-            f"  ORDER BY n.node_id FETCH FIRST {MAX_ANSWER_NODES + 1} ROWS ONLY\n)"
+            f"  ORDER BY n.node_id\n)"
         )
         ap_ctes, ap_name = _backtrack_support(
             "a", "ans", a_names, a_steps, binds

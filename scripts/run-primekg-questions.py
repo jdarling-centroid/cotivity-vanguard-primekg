@@ -263,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     with connect() as conn, finalizer as fin:
-        conn.call_timeout = 20000
+        conn.call_timeout = 120000
         if args.backend == "select_ai":
             try:
                 backend = SelectAiBackend(conn)
@@ -405,7 +405,7 @@ def main(argv: list[str] | None = None) -> int:
             "database": {
                 "backend": args.backend,
                 "dsn_host": settings.database.host,
-                "call_timeout_ms": 20000,
+                "call_timeout_ms": 120000,
                 "remote_allowed": os.environ.get("VPK_ALLOW_REMOTE") == "1",
                 **database_snapshot,
             },

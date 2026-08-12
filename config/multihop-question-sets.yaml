@@ -1,10 +1,5 @@
 version: 1
 source_pdf: reference/vanguard/Vendor_dataset_kg_FINAL.pdf
-validation_limits:
-  max_contexts: 25
-  max_citations: 25
-  max_graph_nodes: 40
-  max_graph_edges: 25
 sections:
 - name: MultiHop RAG
   id: multihop

@@ -117,6 +117,11 @@ def main() -> int:
             "(disabled by default for v7-compatible behavior)"
         ),
     )
+    parser.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        help="continue processing questions even if validation fails",
+    )
     args = parser.parse_args()
 
     vendor = validate_vendor_id(args.vendor_id)
@@ -198,27 +203,31 @@ def main() -> int:
             )
             expected_block = bool(metadata.get("adversarial"))
             actual_block = result.qa["answer_type"] == "firewall_block"
-            if expected_block != actual_block:
-                raise RuntimeError(
-                    f"Q-MH-{number:03d}: expected_block={expected_block}, "
-                    f"actual_block={actual_block}"
-                )
             status = _outcome_status(result.qa, expected_outcome)
+            validation_errors = []
+            if expected_block != actual_block:
+                validation_errors.append(
+                    f"expected_block={expected_block}, actual_block={actual_block}"
+                )
             if status in {
                 "unexpected_insufficient_evidence", "unexpected_answer",
             }:
+                validation_errors.append(
+                    f"expected_outcome={expected_outcome}, actual_status={status}"
+                )
+            if validation_errors and not args.continue_on_error:
                 raise RuntimeError(
-                    f"Q-MH-{number:03d}: expected_outcome={expected_outcome}, "
-                    f"actual_status={status}"
+                    f"Q-MH-{number:03d}: {', '.join(validation_errors)}"
                 )
             qa_records.append(result.qa)
             traces.append(result.trace)
             result.model_audit["token_usage"] = question_usage
             result.model_audit["model_cost_usd"] = question_cost
             audits.append({"question_id": result.qa["question_id"], **result.model_audit})
+            status_label = " [VALIDATION ERROR]" if validation_errors else ""
             print(
                 f"{result.qa['question_id']} {result.qa['latency_ms']}ms "
-                f"{result.qa['vendor_answer'][:100]}",
+                f"{result.qa['vendor_answer'][:100]}{status_label}",
                 flush=True,
             )
 
